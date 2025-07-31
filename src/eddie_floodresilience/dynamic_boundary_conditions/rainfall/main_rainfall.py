@@ -27,7 +27,7 @@ import geopandas as gpd
 from eddie import config
 from eddie.digitaltwin import setup_environment
 from eddie.digitaltwin.utils import LogLevel, setup_logging, get_catchment_area
-from eddie_floodresilience.dynamic_boundary_conditions.rainfall import (
+from src.eddie_floodresilience.dynamic_boundary_conditions.rainfall import (
     rainfall_sites,
     thiessen_polygons,
     hirds_rainfall_data_to_db,
@@ -35,7 +35,7 @@ from eddie_floodresilience.dynamic_boundary_conditions.rainfall import (
     hyetograph,
     rainfall_model_input,
 )
-from eddie_floodresilience.dynamic_boundary_conditions.rainfall.rainfall_enum import RainInputType, HyetoMethod
+from src.eddie_floodresilience.dynamic_boundary_conditions.rainfall.rainfall_enum import RainInputType, HyetoMethod
 
 
 def main(

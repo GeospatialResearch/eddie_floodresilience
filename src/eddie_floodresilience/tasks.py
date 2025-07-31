@@ -14,11 +14,11 @@ import xarray
 from eddie.digitaltwin import setup_environment, retrieve_from_instructions
 from eddie.digitaltwin.utils import setup_logging
 from eddie.tasks import add_base_data_to_db, app, OnFailureStateTask, wkt_to_gdf  # pylint: disable=cyclic-import
-from dynamic_boundary_conditions.rainfall import main_rainfall
-from dynamic_boundary_conditions.river import main_river
-from dynamic_boundary_conditions.tide import main_tide_slr
-from flood_model import bg_flood_model, process_hydro_dem
-from run_all import DEFAULT_MODULES_TO_PARAMETERS
+from src.eddie_floodresilience.dynamic_boundary_conditions.rainfall import main_rainfall
+from src.eddie_floodresilience.dynamic_boundary_conditions.river import main_river
+from src.eddie_floodresilience.dynamic_boundary_conditions.tide import main_tide_slr
+from src.eddie_floodresilience.flood_model import bg_flood_model, process_hydro_dem
+from src.eddie_floodresilience.run_all import DEFAULT_MODULES_TO_PARAMETERS
 
 setup_logging()
 log = logging.getLogger(__name__)

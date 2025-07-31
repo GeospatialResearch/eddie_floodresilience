@@ -4,8 +4,8 @@ from http.client import ACCEPTED
 from flask import Blueprint, jsonify, make_response, Response
 from pywps import Service
 
-from eddie_floodresilience import tasks
-from eddie_floodresilience.flood_model.flood_scenario_process_service import FloodScenarioProcessService
+from src.eddie_floodresilience import tasks
+from src.eddie_floodresilience.flood_model.flood_scenario_process_service import FloodScenarioProcessService
 from eddie.check_celery_alive import check_celery_alive
 
 blueprint = Blueprint('eddie_floodresilience', __name__)

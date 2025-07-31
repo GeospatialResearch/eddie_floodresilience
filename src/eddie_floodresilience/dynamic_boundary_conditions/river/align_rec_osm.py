@@ -28,8 +28,8 @@ import pandas as pd
 from shapely.geometry import Point
 from sqlalchemy.engine import Engine
 
-from eddie_floodresilience.dynamic_boundary_conditions.river import osm_waterways
-from eddie_floodresilience.flood_model import process_hydro_dem
+from src.eddie_floodresilience.dynamic_boundary_conditions.river import osm_waterways
+from src.eddie_floodresilience.flood_model import process_hydro_dem
 
 log = logging.getLogger(__name__)
 

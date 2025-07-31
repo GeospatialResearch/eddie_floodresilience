@@ -28,8 +28,8 @@ from sqlalchemy.engine import Engine
 from sqlalchemy.sql import text
 
 from eddie.digitaltwin.tables import check_table_exists
-from eddie_floodresilience.dynamic_boundary_conditions.river import river_data_from_niwa
-from eddie_floodresilience.dynamic_boundary_conditions.river.river_network_to_from_db import add_network_exclusions_to_db
+from src.eddie_floodresilience.dynamic_boundary_conditions.river import river_data_from_niwa
+from src.eddie_floodresilience.dynamic_boundary_conditions.river.river_network_to_from_db import add_network_exclusions_to_db
 
 log = logging.getLogger(__name__)
 

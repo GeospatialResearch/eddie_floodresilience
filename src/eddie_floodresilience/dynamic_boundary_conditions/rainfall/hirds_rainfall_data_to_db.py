@@ -25,7 +25,7 @@ import geopandas as gpd
 from sqlalchemy.engine import Engine
 
 from eddie.digitaltwin import tables
-from eddie_floodresilience.dynamic_boundary_conditions.rainfall import rainfall_data_from_hirds
+from src.eddie_floodresilience.dynamic_boundary_conditions.rainfall import rainfall_data_from_hirds
 
 log = logging.getLogger(__name__)
 

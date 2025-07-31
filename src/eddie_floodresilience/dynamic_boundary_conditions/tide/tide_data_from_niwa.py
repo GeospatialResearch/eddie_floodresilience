@@ -30,7 +30,7 @@ import numpy as np
 import pandas as pd
 
 from eddie import config
-from eddie_floodresilience.dynamic_boundary_conditions.tide.tide_enum import DatumType, ApproachType
+from src.eddie_floodresilience.dynamic_boundary_conditions.tide.tide_enum import DatumType, ApproachType
 
 log = logging.getLogger(__name__)
 

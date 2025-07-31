@@ -26,7 +26,7 @@ from pywps.response.execute import ExecuteResponse
 import requests
 from shapely import box
 
-from eddie_floodresilience import tasks
+from src.eddie_floodresilience import tasks
 from eddie.config import cast_str_to_bool, EnvVariable as EnvVar
 
 

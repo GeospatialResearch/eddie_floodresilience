@@ -21,12 +21,12 @@ import pathlib
 from eddie.digitaltwin import retrieve_from_instructions
 from eddie.digitaltwin.utils import LogLevel
 from eddie.run_all import create_sample_polygon, main
-from eddie_floodresilience.dynamic_boundary_conditions.rainfall import main_rainfall
-from eddie_floodresilience.dynamic_boundary_conditions.rainfall.rainfall_enum import RainInputType, HyetoMethod
-from eddie_floodresilience.dynamic_boundary_conditions.river import main_river
-from eddie_floodresilience.dynamic_boundary_conditions.river.river_enum import BoundType
-from eddie_floodresilience.dynamic_boundary_conditions.tide import main_tide_slr
-from eddie_floodresilience.flood_model import bg_flood_model, process_hydro_dem
+from src.eddie_floodresilience.dynamic_boundary_conditions.rainfall import main_rainfall
+from src.eddie_floodresilience.dynamic_boundary_conditions.rainfall.rainfall_enum import RainInputType, HyetoMethod
+from src.eddie_floodresilience.dynamic_boundary_conditions.river import main_river
+from src.eddie_floodresilience.dynamic_boundary_conditions.river.river_enum import BoundType
+from src.eddie_floodresilience.dynamic_boundary_conditions.tide import main_tide_slr
+from src.eddie_floodresilience.flood_model import bg_flood_model, process_hydro_dem
 
 DEFAULT_MODULES_TO_PARAMETERS = {
     retrieve_from_instructions: {

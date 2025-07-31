@@ -30,8 +30,8 @@ import xarray as xr
 from newzealidar.utils import get_dem_band_and_resolution_by_geometry
 from sqlalchemy.engine import Engine
 
-from eddie_floodresilience.dynamic_boundary_conditions.river import align_rec_osm
-from eddie_floodresilience.flood_model import process_hydro_dem
+from src.eddie_floodresilience.dynamic_boundary_conditions.river import align_rec_osm
+from src.eddie_floodresilience.flood_model import process_hydro_dem
 
 log = logging.getLogger(__name__)
 
