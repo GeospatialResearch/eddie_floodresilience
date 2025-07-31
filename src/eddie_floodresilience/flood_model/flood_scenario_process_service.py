@@ -123,7 +123,7 @@ def building_flood_status_catalog(scenario_id: int) -> dict:
     gs_building_workspace = f"{EnvVar.POSTGRES_DB}-buildings"
     gs_building_url = f"{EnvVar.GEOSERVER_HOST}:{EnvVar.GEOSERVER_PORT}/geoserver/{gs_building_workspace}/ows"
     # Open and read HTML/mustache template file for infobox
-    with open("./eddie_floodresilience/flood_model/templates/flooded_building_infobox.mustache", encoding="utf-8") as file:
+    with open("./src/eddie_floodresilience/flood_model/templates/flooded_building_infobox.mustache", encoding="utf-8") as file:
         flooded_building_infobox_template = file.read()
     return {
         "type": "wfs",
@@ -248,4 +248,4 @@ def query_time_dimension(gs_flood_model_workspace: str, layer_name: str) -> str:
     namespaces = {"wms": "http://www.opengis.net/wms"}
     time_dim_elem = xml_root.find('.//wms:Dimension[@name="time"]', namespaces)
 
-    return time_dim_elem.text
+    return time_dim_elem.text if time_dim_elem is not None else []

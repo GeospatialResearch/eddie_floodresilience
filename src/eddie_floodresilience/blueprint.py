@@ -1,7 +1,10 @@
 """Endpoints and flask configuration for the Flood Resilience Digital Twin"""
-
+import pathlib
 from http.client import ACCEPTED
 from flask import Blueprint, jsonify, make_response, Response
+import os
+
+os.environ.pop("Path", None)  # todo find more permanent solution
 from pywps import Service
 
 from src.eddie_floodresilience import tasks
@@ -14,8 +17,11 @@ processes = [
 ]
 
 process_descriptor = {process.identifier: process.abstract for process in processes}
+service = Service(processes, ['src/pywps.cfg'])
+for working_dir in ["workdir", "outputs", "logs"]:
+    path = pathlib.Path("./tmp/pywps") / working_dir
+    path.mkdir(exist_ok=True, parents=True)
 
-service = Service(processes, ['eddie/pywps.cfg'])
 
 
 @blueprint.route('/wps', methods=['GET', 'POST'])

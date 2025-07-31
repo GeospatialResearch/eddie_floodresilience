@@ -96,5 +96,6 @@ COPY --chown=root:root --chmod=555 --from=build /venv /venv
 COPY --chown=root:root --chmod=444 selected_polygon.geojson .
 COPY --chown=nonroot:nonroot --chmod=644 instructions.json .
 COPY --chown=root:root --chmod=555 src src/
+COPY --chown=nonroot:nonroot --chmod=644 src/pywps.cfg src/
 
 USER nonroot
