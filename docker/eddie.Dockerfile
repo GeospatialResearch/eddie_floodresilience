@@ -30,7 +30,7 @@ RUN mamba env create -f environment.yml
 # Make RUN commands use the new environment:
 SHELL ["conda", "run", "-n", "digitaltwin", "/bin/bash", "-c"]
 COPY lib/ lib
-RUN pip install lib/Digital-Twins
+RUN pip install lib/eddie
 
 RUN <<EOF
     # Export conda environment

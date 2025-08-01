@@ -94,7 +94,7 @@ services:
   geoserver:
     # Serves geospatial web data through interactions with files and database
     build:
-      context: lib/Digital-Twins
+      context: lib/eddie
       dockerfile: geoserver.Dockerfile
     container_name: geoserver_digital_twin
     volumes:
@@ -118,7 +118,7 @@ services:
   terria_map:
     # Front-end using terria.js
     build:
-      context: lib/Digital-Twins/terriajs
+      context: lib/eddie/terriajs
     ports:
       - "${WWW_PORT}:3001"
     environment:

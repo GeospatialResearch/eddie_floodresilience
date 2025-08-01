@@ -1,4 +1,4 @@
-[submodule "Digital-Twins"]
-	path = lib/Digital-Twins
+[submodule "lib/eddie"]
+	path = lib/eddie
 	url = https://github.com/GeospatialResearch/Digital-Twins.git
 	branch = 297-split-modules-into-completely-separate-repositories
