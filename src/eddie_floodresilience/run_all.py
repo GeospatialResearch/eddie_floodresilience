@@ -31,50 +31,50 @@ from src.eddie_floodresilience.flood_model import bg_flood_model, process_hydro_
 DEFAULT_MODULES_TO_PARAMETERS = {
     retrieve_from_instructions: {
         "log_level": LogLevel.INFO,
-        "instruction_json_path": pathlib.Path("eddie_floodresilience/static_boundary_instructions.json").as_posix()
+        "instruction_json_path": pathlib.Path("./src/eddie_floodresilience/static_boundary_instructions.json").as_posix()
     },
-    # process_hydro_dem: {
-    #     "log_level": LogLevel.INFO
-    # },
-    # main_rainfall: {
-    #     "rcp": 2.6,
-    #     "time_period": "2031-2050",
-    #     "ari": 100,
-    #     "storm_length_mins": 2880,
-    #     "time_to_peak_mins": 1440,
-    #     "increment_mins": 10,
-    #     "hyeto_method": HyetoMethod.ALT_BLOCK,
-    #     "input_type": RainInputType.UNIFORM,
-    #     "log_level": LogLevel.INFO
-    # },
-    # main_tide_slr: {
-    #     "tide_length_mins": 2880,
-    #     "time_to_peak_mins": 1440,
-    #     "interval_mins": 10,
-    #     "proj_year": 2030,
-    #     "confidence_level": "medium",
-    #     "ssp_scenario": "SSP1-2.6",
-    #     "add_vlm": False,
-    #     "percentile": 50,
-    #     "log_level": LogLevel.INFO
-    # },
-    # main_river: {
-    #     "flow_length_mins": 2880,
-    #     "time_to_peak_mins": 1440,
-    #     "maf": True,
-    #     "ari": None,
-    #     "bound": BoundType.MIDDLE,
-    #     "log_level": LogLevel.INFO
-    # },
-    # bg_flood_model: {
-    #     "output_timestep": 1,
-    #     "end_time": 2,
-    #     "resolution": None,
-    #     "mask": 9999,
-    #     "gpu_device": -1,
-    #     "small_nc": 0,
-    #     "log_level": LogLevel.INFO
-    # }
+    process_hydro_dem: {
+        "log_level": LogLevel.INFO
+    },
+    main_rainfall: {
+        "rcp": 2.6,
+        "time_period": "2031-2050",
+        "ari": 100,
+        "storm_length_mins": 2880,
+        "time_to_peak_mins": 1440,
+        "increment_mins": 10,
+        "hyeto_method": HyetoMethod.ALT_BLOCK,
+        "input_type": RainInputType.UNIFORM,
+        "log_level": LogLevel.INFO
+    },
+    main_tide_slr: {
+        "tide_length_mins": 2880,
+        "time_to_peak_mins": 1440,
+        "interval_mins": 10,
+        "proj_year": 2030,
+        "confidence_level": "medium",
+        "ssp_scenario": "SSP1-2.6",
+        "add_vlm": False,
+        "percentile": 50,
+        "log_level": LogLevel.INFO
+    },
+    main_river: {
+        "flow_length_mins": 2880,
+        "time_to_peak_mins": 1440,
+        "maf": True,
+        "ari": None,
+        "bound": BoundType.MIDDLE,
+        "log_level": LogLevel.INFO
+    },
+    bg_flood_model: {
+        "output_timestep": 1,
+        "end_time": 2,
+        "resolution": None,
+        "mask": 9999,
+        "gpu_device": -1,
+        "small_nc": 0,
+        "log_level": LogLevel.INFO
+    }
 }
 
 if __name__ == '__main__':

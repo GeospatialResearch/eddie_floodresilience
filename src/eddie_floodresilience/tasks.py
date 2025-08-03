@@ -5,15 +5,16 @@ Allows the frontend to send tasks and retrieve status later.
 import logging
 from typing import Dict, List, NamedTuple, Union
 
-from celery import result, signals
+from celery import Celery, result, signals
 from celery.worker.consumer import Consumer
 import geopandas as gpd
 from pyproj import Transformer
 import xarray
 
+from eddie.config import EnvVariable
 from eddie.digitaltwin import setup_environment, retrieve_from_instructions
 from eddie.digitaltwin.utils import setup_logging
-from eddie.tasks import add_base_data_to_db, app, OnFailureStateTask, wkt_to_gdf  # pylint: disable=cyclic-import
+from eddie.tasks import add_base_data_to_db, OnFailureStateTask, wkt_to_gdf  # pylint: disable=cyclic-import
 from src.eddie_floodresilience.dynamic_boundary_conditions.rainfall import main_rainfall
 from src.eddie_floodresilience.dynamic_boundary_conditions.river import main_river
 from src.eddie_floodresilience.dynamic_boundary_conditions.tide import main_tide_slr
@@ -23,6 +24,9 @@ from src.eddie_floodresilience.run_all import DEFAULT_MODULES_TO_PARAMETERS
 setup_logging()
 log = logging.getLogger(__name__)
 
+# Setup celery backend task management
+message_broker_url = f"redis://{EnvVariable.MESSAGE_BROKER_HOST}:6379/0"
+app = Celery("tasks", backend=message_broker_url, broker=message_broker_url)
 
 class DepthTimePlot(NamedTuple):
     """
@@ -59,7 +63,7 @@ def on_startup(sender: Consumer, **_kwargs: None) -> None:  # pylint: disable=mi
         base_data_parameters = DEFAULT_MODULES_TO_PARAMETERS[retrieve_from_instructions]
         sender.app.send_task("eddie.tasks.add_base_data_to_db", args=[aoi_wkt, base_data_parameters], connection=conn)
         # Send a task to ensure lidar datasets are evaluated.
-        sender.app.send_task("eddie_floodresilience.tasks.ensure_lidar_datasets_initialised")
+        # sender.app.send_task("eddie_floodresilience.tasks.ensure_lidar_datasets_initialised")
 
 
 def create_model_for_area(selected_polygon_wkt: str, scenario_options: dict) -> result.GroupResult:
@@ -82,9 +86,9 @@ def create_model_for_area(selected_polygon_wkt: str, scenario_options: dict) -> 
     return (
         add_base_data_to_db.si(selected_polygon_wkt, base_data_parameters) |
         process_dem.si(selected_polygon_wkt) |
-        generate_rainfall_inputs.si(selected_polygon_wkt) |
+        # generate_rainfall_inputs.si(selected_polygon_wkt) |
         generate_tide_inputs.si(selected_polygon_wkt, scenario_options) |
-        generate_river_inputs.si(selected_polygon_wkt) |
+        # generate_river_inputs.si(selected_polygon_wkt) |
         run_flood_model.si(selected_polygon_wkt)
     )()
 
