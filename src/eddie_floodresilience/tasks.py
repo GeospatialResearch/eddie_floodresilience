@@ -28,6 +28,7 @@ log = logging.getLogger(__name__)
 message_broker_url = f"redis://{EnvVariable.MESSAGE_BROKER_HOST}:6379/0"
 app = Celery("tasks", backend=message_broker_url, broker=message_broker_url)
 
+
 class DepthTimePlot(NamedTuple):
     """
     Represents the depths over time for a particular pixel location in a raster.

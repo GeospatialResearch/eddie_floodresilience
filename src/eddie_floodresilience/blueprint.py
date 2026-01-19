@@ -4,12 +4,12 @@ from http.client import ACCEPTED
 from flask import Blueprint, jsonify, make_response, Response
 import os
 
-os.environ.pop("Path", None)  # todo find more permanent solution
-from pywps import Service
-
 from src.eddie_floodresilience import tasks
 from src.eddie_floodresilience.flood_model.flood_scenario_process_service import FloodScenarioProcessService
 from eddie.check_celery_alive import check_celery_alive
+
+os.environ.pop("Path", None)  # todo find more permanent solution
+from pywps import Service  # noqa: E402
 
 blueprint = Blueprint('eddie_floodresilience', __name__)
 processes = [
@@ -21,7 +21,6 @@ service = Service(processes, ['src/pywps.cfg'])
 for working_dir in ["workdir", "outputs", "logs"]:
     path = pathlib.Path("./tmp/pywps") / working_dir
     path.mkdir(exist_ok=True, parents=True)
-
 
 
 @blueprint.route('/wps', methods=['GET', 'POST'])

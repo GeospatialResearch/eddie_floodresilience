@@ -25,7 +25,6 @@ import os
 import pathlib
 from xml.sax import saxutils
 
-import requests
 import xarray as xr
 
 from eddie import geoserver
@@ -33,38 +32,6 @@ from eddie.config import EnvVariable
 
 log = logging.getLogger(__name__)
 _xml_header = {"Content-type": "text/xml"}
-
-
-def convert_nc_to_geoserver_compatible(orig_nc_file_path: pathlib.Path) -> pathlib.Path:
-    """
-    Create a geoserver compliant netCDF file from a netCDF model output.
-    Following compliance from COARDS convention.
-        https://docs.geoserver.org/latest/en/user/extensions/netcdf/netcdf.html#notes-on-supported-netcdfs
-
-    Parameters
-    ----------
-    orig_nc_file_path : pathlib.Path
-        The file path to the netCDF file.
-
-    Returns
-    -------
-    pathlib.Path
-        The filepath of the new compliant netCDF file.
-    """
-    log.info(f"Converting {orig_nc_file_path.name} to geoserver compliant netCDF file.")
-    temp_dir = pathlib.Path("tmp/gtiff")
-    # Create temporary storage folder if it does not already exist
-    temp_dir.mkdir(parents=True, exist_ok=True)
-    compliant_nc_path = temp_dir / orig_nc_file_path.name
-    # Convert the netcdf to WGS84, COARDS compliant coordinates
-    with xr.open_dataset(orig_nc_file_path, decode_coords="all") as ds:
-        ds = ds.drop_vars(["blockid", "blockxo", "blockyo", "blockwidth", "blocklevel", "blockstatus"])
-        wgs84_crs_code = 4326
-        ds_wgs84 = ds.rio.reproject(f"EPSG:{wgs84_crs_code}")
-        ds_wgs84.rio.write_crs(wgs84_crs_code, inplace=True)
-        ds_wgs84.to_netcdf(compliant_nc_path)
-
-    return pathlib.Path(os.getcwd()) / compliant_nc_path
 
 
 def convert_nc_to_gtiff(nc_file_path: pathlib.Path) -> pathlib.Path:
@@ -160,39 +127,6 @@ def create_building_layers(workspace_name: str, data_store_name: str) -> None:
                                      metadata_elem=flood_status_xml_query)
 
 
-def create_viridis_style_if_not_exists() -> None:
-    """Create a GeoServer style for flood rasters using the viridis color scale."""
-    style_name = "viridis_raster"
-    log.info(f"Creating style '{style_name}.sld' if it does not exist.")
-    if geoserver.style_exists(style_name):
-        log.debug(f"Style '{style_name}.sld' already exists.")
-    else:
-        # Create the style base
-        create_style_data = f"""
-        <style>
-            <name>{style_name}</name>
-            <filename>{style_name}.sld</filename>
-        </style>
-        """
-        create_style_response = requests.post(
-            f'{geoserver.get_geoserver_url()}/styles',
-            data=create_style_data,
-            headers=_xml_header,
-            auth=(EnvVariable.GEOSERVER_ADMIN_NAME, EnvVariable.GEOSERVER_ADMIN_PASSWORD)
-        )
-        create_style_response.raise_for_status()
-    # PUT the style definition .sld file into the style base
-    with open('./src/eddie_floodresilience/flood_model/templates/viridis_raster.sld', 'rb') as payload:
-        sld_response = requests.put(
-            f'{ggeoserver.get_geoserver_url()}/styles/{style_name}',
-            data=payload,
-            headers={"Content-type": "application/vnd.ogc.sld+xml"},
-            auth=(EnvVariable.GEOSERVER_ADMIN_NAME, EnvVariable.GEOSERVER_ADMIN_PASSWORD)
-        )
-    sld_response.raise_for_status()
-    log.info(f"Style '{style_name}.sld' created.")
-
-
 def create_building_database_views_if_not_exists() -> None:
     """
     Create a GeoServer workspace and building layers using database views if they do not currently exist.
@@ -223,15 +157,10 @@ def add_model_output_to_geoserver(model_output_path: pathlib.Path, model_id: int
         The database id of the model output.
     """
     log.debug("Adding model output to geoserver")
-    nc_filepath = convert_nc_to_geoserver_compatible(model_output_path)
+    gtiff_filepath = convert_nc_to_gtiff(model_output_path)
     db_name = EnvVariable.POSTGRES_DB
     # Assign a new workspace name based on the db_name, to prevent name clashes if running multiple databases
     workspace_name = f"{db_name}-dt-model-outputs"
     geoserver.create_workspace_if_not_exists(workspace_name)
-    band_name = "h_P0"  # The band for water depth
-    # Upload NetCDF output file to Geoserver, creating a layer for water depth
-    geoserver.add_nc_to_geoserver(nc_filepath, band_name, workspace_name, model_id)
-    # Delete temporary file
-    nc_filepath.unlink()
-    # Ensure styling for the layer is present in geoserver
-    create_viridis_style_if_not_exists()
+    geoserver.add_gtiff_to_geoserver(gtiff_filepath, workspace_name, model_id)
+    geoserver.create_viridis_style_if_not_exists()
