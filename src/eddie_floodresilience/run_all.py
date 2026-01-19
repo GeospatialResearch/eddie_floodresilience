@@ -31,7 +31,8 @@ from src.eddie_floodresilience.flood_model import bg_flood_model, process_hydro_
 DEFAULT_MODULES_TO_PARAMETERS = {
     retrieve_from_instructions: {
         "log_level": LogLevel.INFO,
-        "instruction_json_path": pathlib.Path("./src/eddie_floodresilience/static_boundary_instructions.json").as_posix()
+        "instruction_json_path": pathlib.Path(
+            "./src/eddie_floodresilience/static_boundary_instructions.json").as_posix()
     },
     process_hydro_dem: {
         "log_level": LogLevel.INFO

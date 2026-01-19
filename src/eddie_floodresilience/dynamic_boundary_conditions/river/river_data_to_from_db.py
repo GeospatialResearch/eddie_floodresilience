@@ -29,7 +29,8 @@ from sqlalchemy.sql import text
 
 from eddie.digitaltwin.tables import check_table_exists
 from src.eddie_floodresilience.dynamic_boundary_conditions.river import river_data_from_niwa
-from src.eddie_floodresilience.dynamic_boundary_conditions.river.river_network_to_from_db import add_network_exclusions_to_db
+from src.eddie_floodresilience.dynamic_boundary_conditions.river.river_network_to_from_db import \
+    add_network_exclusions_to_db
 
 log = logging.getLogger(__name__)
 
@@ -96,9 +97,10 @@ def get_sdc_data_from_db(engine: Engine, catchment_area: gpd.GeoDataFrame) -> gp
 
 
 def get_rec_data_with_sdc_from_db(
-        engine: Engine,
-        catchment_area: gpd.GeoDataFrame,
-        river_network_id: int) -> gpd.GeoDataFrame:
+    engine: Engine,
+    catchment_area: gpd.GeoDataFrame,
+    river_network_id: int
+) -> gpd.GeoDataFrame:
     """
     Retrieve REC data from the database for the specified catchment area with an additional column that identifies
     the associated sea-draining catchment for each REC geometry.

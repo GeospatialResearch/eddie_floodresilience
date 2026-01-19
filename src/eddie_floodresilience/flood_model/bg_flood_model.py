@@ -41,7 +41,8 @@ from eddie.digitaltwin import setup_environment
 from eddie.digitaltwin.tables import create_table, check_table_exists
 from eddie.digitaltwin.utils import LogLevel, setup_logging, get_catchment_area
 from src.eddie_floodresilience.tables import BGFloodModelOutput
-from src.eddie_floodresilience.flood_model.flooded_buildings import find_flooded_buildings, store_flooded_buildings_in_database
+from src.eddie_floodresilience.flood_model.flooded_buildings import find_flooded_buildings, \
+    store_flooded_buildings_in_database
 from src.eddie_floodresilience.flood_model.serve_model import add_model_output_to_geoserver
 
 log = logging.getLogger(__name__)

@@ -36,7 +36,6 @@ from sqlalchemy import select, func
 from sqlalchemy.engine import Engine
 from sqlalchemy.sql import text
 
-
 from eddie.config import EnvVariable
 from eddie.digitaltwin.tables import (
     check_table_exists,
@@ -74,10 +73,11 @@ def get_next_network_id(engine: Engine) -> int:
 
 
 def add_network_exclusions_to_db(
-        engine: Engine,
-        rec_network_id: int,
-        rec_network_exclusions: gpd.GeoDataFrame,
-        exclusion_cause: str) -> None:
+    engine: Engine,
+    rec_network_id: int,
+    rec_network_exclusions: gpd.GeoDataFrame,
+    exclusion_cause: str
+) -> None:
     """
     Add REC geometries that are excluded from the river network for the current run in the database.
 
@@ -135,9 +135,10 @@ def get_new_network_output_paths() -> Tuple[pathlib.Path, pathlib.Path]:
 
 
 def get_network_output_metadata(
-        network_path: pathlib.Path,
-        network_data_path: pathlib.Path,
-        catchment_area: gpd.GeoDataFrame) -> Tuple[str, str, str]:
+    network_path: pathlib.Path,
+    network_data_path: pathlib.Path,
+    catchment_area: gpd.GeoDataFrame
+) -> Tuple[str, str, str]:
     """
     Get metadata associated with the REC Network.
 
@@ -167,11 +168,12 @@ def get_network_output_metadata(
 
 
 def store_rec_network_to_db(
-        engine: Engine,
-        catchment_area: gpd.GeoDataFrame,
-        rec_network_id: int,
-        rec_network: nx.Graph,
-        rec_network_data: gpd.GeoDataFrame) -> None:
+    engine: Engine,
+    catchment_area: gpd.GeoDataFrame,
+    rec_network_id: int,
+    rec_network: nx.Graph,
+    rec_network_data: gpd.GeoDataFrame
+) -> None:
     """
     Store both the REC river network and its associated data in files, and their metadata in the database.
 
