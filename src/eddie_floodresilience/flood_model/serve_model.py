@@ -163,4 +163,9 @@ def add_model_output_to_geoserver(model_output_path: pathlib.Path, model_id: int
     workspace_name = f"{db_name}-dt-model-outputs"
     geoserver.create_workspace_if_not_exists(workspace_name)
     geoserver.add_gtiff_to_geoserver(gtiff_filepath, workspace_name, model_id)
-    geoserver.create_viridis_style_if_not_exists()
+    create_viridis_style_if_not_exists()
+
+
+def create_viridis_style_if_not_exists() -> None:
+    """Create a GeoServer style for rasters using the viridis color scale."""
+    geoserver.add_style(pathlib.Path("src/eddie_floodresilience/flood_model/templates/viridis_raster.sld"))
