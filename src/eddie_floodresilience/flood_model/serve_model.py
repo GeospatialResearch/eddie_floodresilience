@@ -162,7 +162,8 @@ def add_model_output_to_geoserver(model_output_path: pathlib.Path, model_id: int
     # Assign a new workspace name based on the db_name, to prevent name clashes if running multiple databases
     workspace_name = f"{db_name}-dt-model-outputs"
     geoserver.create_workspace_if_not_exists(workspace_name)
-    geoserver.add_gtiff_to_geoserver(gtiff_filepath, workspace_name, model_id)
+    layer_name = f"output_{model_id}"
+    geoserver.add_gtiff_to_geoserver(gtiff_filepath, workspace_name, layer_name)
     create_viridis_style_if_not_exists()
 
 
