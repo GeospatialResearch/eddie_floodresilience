@@ -1,3 +1,20 @@
+# -*- coding: utf-8 -*-
+# Copyright © 2021-2025 Geospatial Research Institute Toi Hangarau
+# LICENSE: https://github.com/GeospatialResearch/Digital-Twins/blob/master/LICENSE
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as
+# published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 """
 Runs backend tasks using Celery. Allowing for multiple long-running tasks to complete in the background.
 Allows the frontend to send tasks and retrieve status later.
@@ -5,16 +22,15 @@ Allows the frontend to send tasks and retrieve status later.
 import logging
 from typing import Dict, List, NamedTuple, Union
 
-from celery import Celery, result, signals
+from celery import result, signals
 from celery.worker.consumer import Consumer
 import geopandas as gpd
 from pyproj import Transformer
 import xarray
 
-from eddie.config import EnvVariable
-from eddie.digitaltwin import setup_environment, retrieve_from_instructions
+from eddie.digitaltwin import setup_environment, retrieve_from_instructions, cache_new_results, check_cache_results
 from eddie.digitaltwin.utils import setup_logging
-from eddie.tasks import add_base_data_to_db, OnFailureStateTask, wkt_to_gdf  # pylint: disable=cyclic-import
+from eddie.tasks import add_base_data_to_db, app, OnFailureStateTask, wkt_to_gdf  # pylint: disable=cyclic-import
 from src.eddie_floodresilience.dynamic_boundary_conditions.rainfall import main_rainfall
 from src.eddie_floodresilience.dynamic_boundary_conditions.river import main_river
 from src.eddie_floodresilience.dynamic_boundary_conditions.tide import main_tide_slr
@@ -23,10 +39,6 @@ from src.eddie_floodresilience.run_all import DEFAULT_MODULES_TO_PARAMETERS
 
 setup_logging()
 log = logging.getLogger(__name__)
-
-# Setup celery backend task management
-message_broker_url = f"redis://{EnvVariable.MESSAGE_BROKER_HOST}:6379/0"
-app = Celery("tasks", backend=message_broker_url, broker=message_broker_url)
 
 
 class DepthTimePlot(NamedTuple):
@@ -64,7 +76,7 @@ def on_startup(sender: Consumer, **_kwargs: None) -> None:  # pylint: disable=mi
         base_data_parameters = DEFAULT_MODULES_TO_PARAMETERS[retrieve_from_instructions]
         sender.app.send_task("eddie.tasks.add_base_data_to_db", args=[aoi_wkt, base_data_parameters], connection=conn)
         # Send a task to ensure lidar datasets are evaluated.
-        # sender.app.send_task("eddie_floodresilience.tasks.ensure_lidar_datasets_initialised")
+        sender.app.send_task("src.eddie_floodresilience.tasks.ensure_lidar_datasets_initialised")
 
 
 def create_model_for_area(selected_polygon_wkt: str, scenario_options: dict) -> result.GroupResult:
@@ -87,10 +99,11 @@ def create_model_for_area(selected_polygon_wkt: str, scenario_options: dict) -> 
     return (
         add_base_data_to_db.si(selected_polygon_wkt, base_data_parameters) |
         process_dem.si(selected_polygon_wkt) |
-        # generate_rainfall_inputs.si(selected_polygon_wkt) |
+        generate_rainfall_inputs.si(selected_polygon_wkt) |
         generate_tide_inputs.si(selected_polygon_wkt, scenario_options) |
-        # generate_river_inputs.si(selected_polygon_wkt) |
-        run_flood_model.si(selected_polygon_wkt)
+        generate_river_inputs.si(selected_polygon_wkt) |
+        run_flood_model.si(selected_polygon_wkt) |
+        cache_results.s(selected_polygon_wkt, scenario_options)
     )()
 
 
@@ -174,6 +187,57 @@ def run_flood_model(selected_polygon_wkt: str) -> int:
     parameters = DEFAULT_MODULES_TO_PARAMETERS[bg_flood_model]
     selected_polygon = wkt_to_gdf(selected_polygon_wkt)
     flood_model_id = bg_flood_model.main(selected_polygon, **parameters)
+    return flood_model_id
+
+
+@app.task(base=OnFailureStateTask)
+def cache_results(flood_model_id: int, selected_polygon_wkt: str, scenario_options: dict) -> int:
+    """
+    Task to cache the scenario options used to generate an existing model with the given model id, for faster retrieval.
+
+    Parameters
+    ----------
+    flood_model_id : int
+        The database id of the existing model output to attach the cached parameters to.
+    selected_polygon_wkt: gpd.GeoDataFrame
+        The selected area of interest to cache, in WKT form.
+        Any area fully intersecting this one can be retrieved later if the other parameters match.
+
+    scenario_options : dict
+        The input parameters to the model to cache, which must match for later retrieval.
+
+    Returns
+    -------
+    int
+        model_id re-returned to allow method chaining.
+    """
+    parameters = DEFAULT_MODULES_TO_PARAMETERS[cache_new_results]
+    selected_polygon = wkt_to_gdf(selected_polygon_wkt)
+    cache_new_results.main(selected_polygon, flood_model_id, scenario_options, parameters["log_level"])
+    return flood_model_id
+
+
+@app.task(base=OnFailureStateTask)
+def check_cache(selected_polygon_wkt: str, scenario_options: dict) -> int | None:
+    """
+    Task to search the cache for model input generated with identical scenario_options and a selected polygon which
+    contains this function's selected_polygon.
+
+    Parameters
+    ----------
+    selected_polygon_wkt : str
+        The area of interest to search the cache for in WKT form.
+        Positive results if the cached polygon contains this polygon.
+    scenario_options : dict
+        The model input parameters, which must match exactly with the cached results for a positive match.
+
+    Returns
+    -------
+    int | None
+        Returns the matching model_id if a match is found. Otherwise, None.
+    """
+    selected_polygon = wkt_to_gdf(selected_polygon_wkt)
+    flood_model_id = check_cache_results.main(selected_polygon, scenario_options)
     return flood_model_id
 
 

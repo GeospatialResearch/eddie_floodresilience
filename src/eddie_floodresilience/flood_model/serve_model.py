@@ -85,12 +85,7 @@ def create_building_layers(workspace_name: str, data_store_name: str) -> None:
     flood_status_layer_name = "building_flood_status"
     flooded_buildings_sql_query = """
         SELECT *,
-               is_flooded::int AS is_flooded_int,
-               4.5             AS extruded_height,
-               CASE
-                   WHEN is_flooded THEN 'darkred'
-                   ELSE 'darkgreen'
-               END             AS fill
+               is_flooded::int AS is_flooded_int
         FROM nz_building_outlines
                  LEFT OUTER JOIN building_flood_status USING (building_outline_id)
         WHERE building_outline_lifecycle ILIKE 'current'
@@ -127,6 +122,39 @@ def create_building_layers(workspace_name: str, data_store_name: str) -> None:
                                      metadata_elem=flood_status_xml_query)
 
 
+def create_viridis_style_if_not_exists() -> None:
+    """Create a GeoServer style for flood rasters using the viridis color scale."""
+    style_name = "viridis_raster"
+    log.info(f"Creating style '{style_name}.sld' if it does not exist.")
+    if style_exists(style_name):
+        log.debug(f"Style '{style_name}.sld' already exists.")
+    else:
+        # Create the style base
+        create_style_data = f"""
+        <style>
+            <name>{style_name}</name>
+            <filename>{style_name}.sld</filename>
+        </style>
+        """
+        create_style_response = requests.post(
+            f'{get_geoserver_url()}/styles',
+            data=create_style_data,
+            headers=_xml_header,
+            auth=(EnvVariable.GEOSERVER_ADMIN_NAME, EnvVariable.GEOSERVER_ADMIN_PASSWORD)
+        )
+        create_style_response.raise_for_status()
+    # PUT the style definition .sld file into the style base
+    with open('src/eddie_floodresilience/flood_model/templates/viridis_raster.sld', 'rb') as payload:
+        sld_response = requests.put(
+            f'{get_geoserver_url()}/styles/{style_name}',
+            data=payload,
+            headers={"Content-type": "application/vnd.ogc.sld+xml"},
+            auth=(EnvVariable.GEOSERVER_ADMIN_NAME, EnvVariable.GEOSERVER_ADMIN_PASSWORD)
+        )
+    sld_response.raise_for_status()
+    log.info(f"Style '{style_name}.sld' created.")
+
+
 def create_building_database_views_if_not_exists() -> None:
     """
     Create a GeoServer workspace and building layers using database views if they do not currently exist.
@@ -136,10 +164,7 @@ def create_building_database_views_if_not_exists() -> None:
     db_name = EnvVariable.POSTGRES_DB
     workspace_name = f"{db_name}-buildings"
     # Create workspace if it doesn't exist, so that the namespaces can be separated if multiple dbs are running
-    geoserver.create_workspace_if_not_exists(workspace_name)
-    # Create a new database store if geoserver is not yet configured for that database
-    data_store_name = f"{db_name} PostGIS"
-    geoserver.create_db_store_if_not_exists(db_name, workspace_name, data_store_name)
+    data_store_name = geoserver.create_main_db_store(workspace_name)
     # Create SQL view layers so geoserver can dynamically serve building layers based on model outputs.
     create_building_layers(workspace_name, data_store_name)
 
@@ -164,9 +189,6 @@ def add_model_output_to_geoserver(model_output_path: pathlib.Path, model_id: int
     geoserver.create_workspace_if_not_exists(workspace_name)
     layer_name = f"output_{model_id}"
     geoserver.add_gtiff_to_geoserver(gtiff_filepath, workspace_name, layer_name)
-    create_viridis_style_if_not_exists()
-
-
-def create_viridis_style_if_not_exists() -> None:
-    """Create a GeoServer style for rasters using the viridis color scale."""
-    geoserver.add_style(pathlib.Path("src/eddie_floodresilience/flood_model/templates/viridis_raster.sld"))
+    # We can remove the temporary raster
+    gtiff_filepath.unlink()
+    geoserver.create_viridis_style_if_not_exists()
