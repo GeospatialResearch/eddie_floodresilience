@@ -29,8 +29,7 @@ from sqlalchemy.sql import text
 
 from eddie.digitaltwin.tables import check_table_exists
 from src.eddie_floodresilience.dynamic_boundary_conditions.river import river_data_from_niwa
-from src.eddie_floodresilience.dynamic_boundary_conditions.river.river_network_to_from_db import \
-    add_network_exclusions_to_db
+from src.eddie_floodresilience.dynamic_boundary_conditions.river.river_network_to_from_db import add_network_exclusions_to_db
 
 log = logging.getLogger(__name__)
 
@@ -50,14 +49,8 @@ def store_rec_data_to_db(engine: Engine) -> None:
     if check_table_exists(engine, table_name):
         log.info(f"'{table_name}' already exists in the database.")
     else:
-        try:
-            # Retrieve REC data from NIWA using the ArcGIS REST API
-            rec_data = river_data_from_niwa.fetch_rec_data_from_niwa(engine)
-        except RuntimeError as error:
-            # Log a warning message to indicate that a runtime error occurred while fetching REC data
-            log.warning(error)
-            # Retrieve backup REC data from NIWA OpenData
-            rec_data = river_data_from_niwa.fetch_backup_rec_data_from_niwa()
+        # Retrieve REC data from NIWA's OpenData API
+        rec_data = river_data_from_niwa.fetch_rec_data_from_niwa(engine)
         # Store the REC data to the database table
         log.info(f"Adding '{table_name}' to the database.")
         rec_data.to_postgis(table_name, engine, index=False, if_exists="replace")
