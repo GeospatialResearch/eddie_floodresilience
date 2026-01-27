@@ -25,6 +25,7 @@ import os
 import pathlib
 from xml.sax import saxutils
 
+import requests
 import xarray as xr
 
 from eddie import geoserver
@@ -126,7 +127,7 @@ def create_viridis_style_if_not_exists() -> None:
     """Create a GeoServer style for flood rasters using the viridis color scale."""
     style_name = "viridis_raster"
     log.info(f"Creating style '{style_name}.sld' if it does not exist.")
-    if style_exists(style_name):
+    if geoserver.style_exists(style_name):
         log.debug(f"Style '{style_name}.sld' already exists.")
     else:
         # Create the style base
@@ -137,7 +138,7 @@ def create_viridis_style_if_not_exists() -> None:
         </style>
         """
         create_style_response = requests.post(
-            f'{get_geoserver_url()}/styles',
+            f'{geoserver.get_geoserver_url()}/styles',
             data=create_style_data,
             headers=_xml_header,
             auth=(EnvVariable.GEOSERVER_ADMIN_NAME, EnvVariable.GEOSERVER_ADMIN_PASSWORD)
@@ -146,7 +147,7 @@ def create_viridis_style_if_not_exists() -> None:
     # PUT the style definition .sld file into the style base
     with open('src/eddie_floodresilience/flood_model/templates/viridis_raster.sld', 'rb') as payload:
         sld_response = requests.put(
-            f'{get_geoserver_url()}/styles/{style_name}',
+            f'{geoserver.get_geoserver_url()}/styles/{style_name}',
             data=payload,
             headers={"Content-type": "application/vnd.ogc.sld+xml"},
             auth=(EnvVariable.GEOSERVER_ADMIN_NAME, EnvVariable.GEOSERVER_ADMIN_PASSWORD)
@@ -191,4 +192,4 @@ def add_model_output_to_geoserver(model_output_path: pathlib.Path, model_id: int
     geoserver.add_gtiff_to_geoserver(gtiff_filepath, workspace_name, layer_name)
     # We can remove the temporary raster
     gtiff_filepath.unlink()
-    geoserver.create_viridis_style_if_not_exists()
+    create_viridis_style_if_not_exists()

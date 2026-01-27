@@ -28,8 +28,7 @@ from sqlalchemy.engine import Engine
 from sqlalchemy.sql import text
 
 from eddie.digitaltwin.tables import check_table_exists
-from src.eddie_floodresilience.dynamic_boundary_conditions.river import river_data_from_niwa
-from src.eddie_floodresilience.dynamic_boundary_conditions.river.river_network_to_from_db import add_network_exclusions_to_db
+from src.eddie_floodresilience.dynamic_boundary_conditions.river import river_data_from_niwa, river_network_to_from_db
 
 log = logging.getLogger(__name__)
 
@@ -148,6 +147,6 @@ def get_rec_data_with_sdc_from_db(
     # Get the object IDs of REC geometries that are not fully contained within sea-draining catchments
     rec_network_exclusions = rec_data_join_sdc[rec_data_join_sdc["catch_id"].isna()].reset_index(drop=True)
     # Add excluded REC geometries in the River Network to the relevant database table
-    add_network_exclusions_to_db(engine, river_network_id, rec_network_exclusions,
-                                 exclusion_cause="crossing multiple sea-draining catchments")
+    river_network_to_from_db.add_network_exclusions_to_db(engine, river_network_id, rec_network_exclusions,
+                                                          exclusion_cause="crossing multiple sea-draining catchments")
     return rec_data_with_sdc
