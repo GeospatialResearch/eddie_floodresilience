@@ -47,6 +47,7 @@ dependencies:
   - scrapy==2.11.1
   - gevent==23.9.1
   - pip:
+    - pandas==1.5.3
     - flask_swagger_ui==4.11.1
     - selenium==4.16.0
     - geovoronoi==0.4.0
