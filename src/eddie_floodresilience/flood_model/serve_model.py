@@ -25,7 +25,6 @@ import os
 import pathlib
 from xml.sax import saxutils
 
-import requests
 import xarray as xr
 
 from eddie import geoserver
