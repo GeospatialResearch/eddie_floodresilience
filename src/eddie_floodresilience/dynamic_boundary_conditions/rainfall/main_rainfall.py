@@ -24,18 +24,14 @@ from typing import Optional, Union
 
 import geopandas as gpd
 
-from eddie import config
 from eddie.digitaltwin import setup_environment
-from eddie.digitaltwin.utils import LogLevel, setup_logging, get_catchment_area
-from src.eddie_floodresilience.dynamic_boundary_conditions.rainfall import (
-    rainfall_sites,
-    thiessen_polygons,
-    hirds_rainfall_data_to_db,
-    hirds_rainfall_data_from_db,
-    hyetograph,
-    rainfall_model_input,
-)
-from src.eddie_floodresilience.dynamic_boundary_conditions.rainfall.rainfall_enum import RainInputType, HyetoMethod
+from eddie.digitaltwin.utils import LogLevel, get_catchment_area, setup_logging
+from src.eddie_floodresilience import config
+from src.eddie_floodresilience.dynamic_boundary_conditions.rainfall import (hirds_rainfall_data_from_db,
+                                                                            hirds_rainfall_data_to_db, hyetograph,
+                                                                            rainfall_model_input, rainfall_sites,
+                                                                            thiessen_polygons)
+from src.eddie_floodresilience.dynamic_boundary_conditions.rainfall.rainfall_enum import HyetoMethod, RainInputType
 
 
 def main(

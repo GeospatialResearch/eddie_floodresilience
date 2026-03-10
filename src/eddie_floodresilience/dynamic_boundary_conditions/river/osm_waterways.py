@@ -19,11 +19,11 @@
 
 import logging
 
-import geopandas as gpd
 from OSMPythonTools.cachingStrategy import CachingStrategy, JSON
-from OSMPythonTools.overpass import overpassQueryBuilder, Overpass
+from OSMPythonTools.overpass import Overpass, overpassQueryBuilder
+import geopandas as gpd
 
-from eddie import config
+from src.eddie_floodresilience import config
 
 log = logging.getLogger(__name__)
 

@@ -28,7 +28,7 @@ from xml.sax import saxutils
 import xarray as xr
 
 from eddie import geoserver
-from eddie.config import EnvVariable
+from src.eddie_floodresilience.config import EnvVariable
 
 log = logging.getLogger(__name__)
 _xml_header = {"Content-type": "text/xml"}

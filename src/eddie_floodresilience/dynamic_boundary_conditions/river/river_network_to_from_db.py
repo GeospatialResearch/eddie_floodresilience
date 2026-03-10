@@ -22,27 +22,27 @@ and managing the addition of REC geometries that have been excluded from the riv
 as well as retrieving them for an existing REC river network.
 """
 
+from datetime import datetime
 import logging
 import pathlib
 import pickle
-from datetime import datetime
 from typing import Tuple
 
 import geopandas as gpd
 import networkx as nx
 import numpy as np
 import shapely.wkt
-from sqlalchemy import select, func
+from sqlalchemy import func, select
 from sqlalchemy.engine import Engine
 from sqlalchemy.sql import text
 
-from eddie.config import EnvVariable
 from eddie.digitaltwin.tables import (
     check_table_exists,
     create_table,
     execute_query
 )
-from src.eddie_floodresilience.tables import RiverNetworkExclusions, RiverNetwork
+from src.eddie_floodresilience.config import EnvVariable
+from src.eddie_floodresilience.tables import RiverNetwork, RiverNetworkExclusions
 
 log = logging.getLogger(__name__)
 
