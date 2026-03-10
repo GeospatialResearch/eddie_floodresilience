@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright © 2021-2025 Geospatial Research Institute Toi Hangarau
+# Copyright © 2021-2026 Geospatial Research Institute Toi Hangarau
 # LICENSE: https://github.com/GeospatialResearch/Digital-Twins/blob/master/LICENSE
 #
 # This program is free software: you can redistribute it and/or modify
@@ -19,7 +19,7 @@
 from datetime import datetime, timezone
 
 from geoalchemy2 import Geometry
-from sqlalchemy import Column, Integer, String, PrimaryKeyConstraint, DateTime, Boolean
+from sqlalchemy import Boolean, Column, DateTime, Integer, PrimaryKeyConstraint, String
 
 from eddie.digitaltwin.tables import Base
 

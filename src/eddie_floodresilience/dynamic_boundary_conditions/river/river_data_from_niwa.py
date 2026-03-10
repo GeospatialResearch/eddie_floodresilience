@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright © 2021-2025 Geospatial Research Institute Toi Hangarau
+# Copyright © 2021-2026 Geospatial Research Institute Toi Hangarau
 # LICENSE: https://github.com/GeospatialResearch/Digital-Twins/blob/master/LICENSE
 #
 # This program is free software: you can redistribute it and/or modify
@@ -19,15 +19,15 @@
 
 import asyncio
 import logging
-from typing import List, Dict, Union
+from typing import Dict, List, Union
 
 import aiohttp
 import geopandas as gpd
 import pandas as pd
 import requests
-from tqdm.asyncio import tqdm_asyncio
 from shapely.geometry import LineString
 from sqlalchemy.engine import Engine
+from tqdm.asyncio import tqdm_asyncio
 
 from eddie.digitaltwin.utils import get_nz_boundary
 

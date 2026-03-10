@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright © 2021-2025 Geospatial Research Institute Toi Hangarau
+# Copyright © 2021-2026 Geospatial Research Institute Toi Hangarau
 # LICENSE: https://github.com/GeospatialResearch/Digital-Twins/blob/master/LICENSE
 #
 # This program is free software: you can redistribute it and/or modify
@@ -24,10 +24,10 @@ spatially varying rain input ('rain_forcing.nc' NetCDF file).
 import logging
 import pathlib
 
+from geocube.api.core import make_geocube
 import geopandas as gpd
 import pandas as pd
 import xarray as xr
-from geocube.api.core import make_geocube
 
 from src.eddie_floodresilience.dynamic_boundary_conditions.rainfall import hyetograph
 from src.eddie_floodresilience.dynamic_boundary_conditions.rainfall.rainfall_enum import RainInputType

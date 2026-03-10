@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright © 2021-2025 Geospatial Research Institute Toi Hangarau
+# Copyright © 2021-2026 Geospatial Research Institute Toi Hangarau
 # LICENSE: https://github.com/GeospatialResearch/Digital-Twins/blob/master/LICENSE
 #
 # This program is free software: you can redistribute it and/or modify
@@ -23,8 +23,8 @@ Retrieve the coverage areas (Thiessen polygons) for all rainfall sites located w
 import logging
 
 import geopandas as gpd
+from geovoronoi import points_to_coords, voronoi_regions_from_coords
 import pandas as pd
-from geovoronoi import voronoi_regions_from_coords, points_to_coords
 from sqlalchemy.engine import Engine
 from sqlalchemy.sql import text
 

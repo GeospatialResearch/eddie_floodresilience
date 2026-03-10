@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright © 2021-2025 Geospatial Research Institute Toi Hangarau
+# Copyright © 2021-2026 Geospatial Research Institute Toi Hangarau
 # LICENSE: https://github.com/GeospatialResearch/Digital-Twins/blob/master/LICENSE
 #
 # This program is free software: you can redistribute it and/or modify
@@ -16,20 +16,19 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 """The main web application that serves the Digital Twin to the web through a Rest API."""
+from http.client import OK
 import importlib
 import logging
-from http.client import OK
 
-from flask import Flask, jsonify, make_response, Response
+from dotenv import load_dotenv
+from flask import Flask, Response, jsonify, make_response
 from flask_cors import CORS
 from flask_swagger_ui import get_swaggerui_blueprint
-from dotenv import load_dotenv
 
 from eddie.check_celery_alive import check_celery_alive
 from eddie.digitaltwin.utils import setup_logging
 from eddie.discover_plugins import discover_plugins
 from eddie.geoserver import get_terria_catalog
-
 from src.eddie_floodresilience import blueprint as flood_resilience_blueprint
 
 setup_logging()

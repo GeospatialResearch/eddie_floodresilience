@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright © 2021-2025 Geospatial Research Institute Toi Hangarau
+# Copyright © 2021-2026 Geospatial Research Institute Toi Hangarau
 # LICENSE: https://github.com/GeospatialResearch/Digital-Twins/blob/master/LICENSE
 #
 # This program is free software: you can redistribute it and/or modify
@@ -18,11 +18,11 @@
 """This script runs each module in the Digital Twin using a Sample Polygon."""
 import pathlib
 
-from eddie.digitaltwin import retrieve_from_instructions, cache_new_results
+from eddie.digitaltwin import cache_new_results, retrieve_from_instructions
 from eddie.digitaltwin.utils import LogLevel
 from eddie.run_all import create_sample_polygon, main
 from src.eddie_floodresilience.dynamic_boundary_conditions.rainfall import main_rainfall
-from src.eddie_floodresilience.dynamic_boundary_conditions.rainfall.rainfall_enum import RainInputType, HyetoMethod
+from src.eddie_floodresilience.dynamic_boundary_conditions.rainfall.rainfall_enum import HyetoMethod, RainInputType
 from src.eddie_floodresilience.dynamic_boundary_conditions.river import main_river
 from src.eddie_floodresilience.dynamic_boundary_conditions.river.river_enum import BoundType
 from src.eddie_floodresilience.dynamic_boundary_conditions.tide import main_tide_slr

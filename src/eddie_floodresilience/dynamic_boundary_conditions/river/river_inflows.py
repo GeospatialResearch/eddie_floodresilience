@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright © 2021-2025 Geospatial Research Institute Toi Hangarau
+# Copyright © 2021-2026 Geospatial Research Institute Toi Hangarau
 # LICENSE: https://github.com/GeospatialResearch/Digital-Twins/blob/master/LICENSE
 #
 # This program is free software: you can redistribute it and/or modify
@@ -23,12 +23,12 @@ for the BG-Flood model.
 import logging
 
 import geopandas as gpd
+from newzealidar.utils import get_dem_band_and_resolution_by_geometry
 import numpy as np
 import pandas as pd
 import pyproj
-import xarray as xr
-from newzealidar.utils import get_dem_band_and_resolution_by_geometry
 from sqlalchemy.engine import Engine
+import xarray as xr
 
 from src.eddie_floodresilience.dynamic_boundary_conditions.river import align_rec_osm
 from src.eddie_floodresilience.flood_model import process_hydro_dem

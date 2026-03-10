@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright © 2021-2025 Geospatial Research Institute Toi Hangarau
+# Copyright © 2021-2026 Geospatial Research Institute Toi Hangarau
 # LICENSE: https://github.com/GeospatialResearch/Digital-Twins/blob/master/LICENSE
 #
 # This program is free software: you can redistribute it and/or modify
@@ -27,12 +27,12 @@ from typing import Tuple, Union
 import geopandas as gpd
 import newzealidar.datasets
 import newzealidar.process
-import pyproj
-import xarray as xr
 from newzealidar.utils import get_dem_band_and_resolution_by_geometry
+import pyproj
 from shapely import LineString
 from shapely.geometry import box
 from sqlalchemy.engine import Engine
+import xarray as xr
 
 from eddie.digitaltwin import setup_environment, tables
 from eddie.digitaltwin.utils import LogLevel, setup_logging
