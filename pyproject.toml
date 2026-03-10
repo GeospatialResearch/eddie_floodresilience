@@ -7,7 +7,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "eddie_floodresilience"
-version = "3.0"
+version = "3.0.0"
 description = "A module for EDDIE that defined the Flood Resilience Digital Twin."
 readme = "README.md"
 authors = [{ name = "Luke Parkinson", email = "luke.parkinson@canterbury.ac.nz" }]
