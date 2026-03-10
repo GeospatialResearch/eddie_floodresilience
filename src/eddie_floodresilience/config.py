@@ -18,20 +18,20 @@
 
 import pathlib
 
-from eddie import config
+from eddie.config import EnvVariable as EnvVarBase
 
 
-class EnvVariable(config.EnvVariable):  # pylint: disable=too-few-public-methods
+class EnvVariable(EnvVarBase):  # pylint: disable=too-few-public-methods
     """Encapsulates all environment variable fetching, ensuring proper defaults and types."""
 
-    NIWA_API_KEY = super()._get_env_variable("NIWA_API_KEY")
+    NIWA_API_KEY = EnvVarBase._get_env_variable("NIWA_API_KEY")
 
-    DATA_DIR = pathlib.Path(super()._get_env_variable("DATA_DIR"))
-    DATA_DIR_MODEL_OUTPUT = pathlib.Path(super()._get_env_variable("DATA_DIR_MODEL_OUTPUT"))
-    FLOOD_MODEL_DIR = pathlib.Path(super()._get_env_variable("FLOOD_MODEL_DIR"))
+    DATA_DIR = pathlib.Path(EnvVarBase._get_env_variable("DATA_DIR"))
+    DATA_DIR_MODEL_OUTPUT = pathlib.Path(EnvVarBase._get_env_variable("DATA_DIR_MODEL_OUTPUT"))
+    FLOOD_MODEL_DIR = pathlib.Path(EnvVarBase._get_env_variable("FLOOD_MODEL_DIR"))
 
     # NewZealidar config that we must ensure have values.
-    _LIDAR_DIR = super()._get_env_variable("LIDAR_DIR")
-    _DEM_DIR = super()._get_env_variable("DEM_DIR")
-    _LAND_FILE = super()._get_env_variable("LAND_FILE", allow_empty=True)
-    _INSTRUCTIONS_FILE = super()._get_env_variable("INSTRUCTIONS_FILE")
+    _LIDAR_DIR = EnvVarBase._get_env_variable("LIDAR_DIR")
+    _DEM_DIR = EnvVarBase._get_env_variable("DEM_DIR")
+    _LAND_FILE = EnvVarBase._get_env_variable("LAND_FILE", allow_empty=True)
+    _INSTRUCTIONS_FILE = EnvVarBase._get_env_variable("INSTRUCTIONS_FILE")
