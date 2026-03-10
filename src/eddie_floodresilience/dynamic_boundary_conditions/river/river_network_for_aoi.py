@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright © 2021-2025 Geospatial Research Institute Toi Hangarau
+# Copyright © 2021-2026 Geospatial Research Institute Toi Hangarau
 # LICENSE: https://github.com/GeospatialResearch/Digital-Twins/blob/master/LICENSE
 #
 # This program is free software: you can redistribute it and/or modify
@@ -28,12 +28,8 @@ from sqlalchemy.engine import Engine
 
 from src.eddie_floodresilience.dynamic_boundary_conditions.river import river_data_to_from_db
 from src.eddie_floodresilience.dynamic_boundary_conditions.river.river_network_to_from_db import (
-    get_next_network_id,
-    add_network_exclusions_to_db,
-    store_rec_network_to_db,
-    get_existing_network_metadata_from_db,
-    get_existing_network
-)
+    add_network_exclusions_to_db, get_existing_network, get_existing_network_metadata_from_db, get_next_network_id,
+    store_rec_network_to_db)
 from src.eddie_floodresilience.flood_model import process_hydro_dem
 
 log = logging.getLogger(__name__)

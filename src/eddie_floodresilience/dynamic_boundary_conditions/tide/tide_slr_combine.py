@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright © 2021-2025 Geospatial Research Institute Toi Hangarau
+# Copyright © 2021-2026 Geospatial Research Institute Toi Hangarau
 # LICENSE: https://github.com/GeospatialResearch/Digital-Twins/blob/master/LICENSE
 #
 # This program is free software: you can redistribute it and/or modify
@@ -26,8 +26,8 @@ import re
 import geopandas as gpd
 import numpy as np
 import pandas as pd
-import shapely.wkt
 from scipy.interpolate import interp1d
+import shapely.wkt
 
 log = logging.getLogger(__name__)
 

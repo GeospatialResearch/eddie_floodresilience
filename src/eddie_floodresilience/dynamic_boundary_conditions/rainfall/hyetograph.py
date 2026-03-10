@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-# Copyright © 2021-2025 Geospatial Research Institute Toi Hangarau
+# Copyright © 2021-2026 Geospatial Research Institute Toi Hangarau
 # LICENSE: https://github.com/GeospatialResearch/Digital-Twins/blob/master/LICENSE
 #
 # This program is free software: you can redistribute it and/or modify
@@ -17,13 +17,13 @@
 
 """Get hyetograph data and generate interactive hyetograph plots for sites located within the catchment area."""
 
+from math import ceil, floor
 from typing import Union
-from math import floor, ceil
 
-import pandas as pd
 import numpy as np
-from scipy.interpolate import interp1d
+import pandas as pd
 import plotly.express as px
+from scipy.interpolate import interp1d
 
 from src.eddie_floodresilience.dynamic_boundary_conditions.rainfall.rainfall_enum import HyetoMethod
 
