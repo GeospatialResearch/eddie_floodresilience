@@ -20,30 +20,30 @@ This script handles the processing of input files for the BG-Flood Model, execut
 resulting model output metadata in the database, and incorporates the model output into GeoServer for visualization.
 """
 
+from datetime import datetime
 import logging
 import os
 import pathlib
 import platform
 import subprocess
-from datetime import datetime
-from typing import Tuple, Union, Optional, TextIO
+from typing import Optional, TextIO, Tuple, Union
 
 import geopandas as gpd
-import xarray as xr
 from newzealidar.utils import get_dem_by_geometry
 from sqlalchemy import insert
 from sqlalchemy.engine import Engine
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.sql import text
+import xarray as xr
 
-from eddie import config
 from eddie.digitaltwin import setup_environment
-from eddie.digitaltwin.tables import create_table, check_table_exists
-from eddie.digitaltwin.utils import LogLevel, setup_logging, get_catchment_area
-from src.eddie_floodresilience.tables import BGFloodModelOutput
+from eddie.digitaltwin.tables import check_table_exists, create_table
+from eddie.digitaltwin.utils import LogLevel, get_catchment_area, setup_logging
+from src.eddie_floodresilience import config
 from src.eddie_floodresilience.flood_model.flooded_buildings import find_flooded_buildings, \
     store_flooded_buildings_in_database
 from src.eddie_floodresilience.flood_model.serve_model import add_model_output_to_geoserver
+from src.eddie_floodresilience.tables import BGFloodModelOutput
 
 log = logging.getLogger(__name__)
 

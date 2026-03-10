@@ -25,8 +25,9 @@ from pywps import BoundingBoxInput, ComplexOutput, Format, LiteralInput, Process
 from pywps.response.execute import ExecuteResponse
 from shapely import box
 
-from eddie.config import cast_str_to_bool, EnvVariable as EnvVar
+from eddie.config import cast_str_to_bool
 from src.eddie_floodresilience import tasks
+from src.eddie_floodresilience.config import EnvVariable as EnvVar
 
 
 class FloodScenarioProcessService(Process):

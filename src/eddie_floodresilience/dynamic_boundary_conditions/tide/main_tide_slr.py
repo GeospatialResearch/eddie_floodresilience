@@ -22,22 +22,18 @@ and generate the requested tide uniform boundary model input for BG-Flood etc.
 
 import logging
 import pathlib
-from typing import Dict, NamedTuple, Union, Optional
+from typing import Dict, NamedTuple, Optional, Union
 
 import geopandas as gpd
 import pandas as pd
 from sqlalchemy import text
 
-from eddie import config
 from eddie.digitaltwin import setup_environment, tables
-from eddie.digitaltwin.utils import LogLevel, setup_logging, get_catchment_area
-from src.eddie_floodresilience.dynamic_boundary_conditions.tide import (
-    tide_query_location,
-    tide_data_from_niwa,
-    sea_level_rise_data,
-    tide_slr_combine,
-    tide_slr_model_input
-)
+from eddie.digitaltwin.utils import LogLevel, get_catchment_area, setup_logging
+from src.eddie_floodresilience import config
+from src.eddie_floodresilience.dynamic_boundary_conditions.tide import (sea_level_rise_data, tide_data_from_niwa,
+                                                                        tide_query_location, tide_slr_combine,
+                                                                        tide_slr_model_input)
 from src.eddie_floodresilience.dynamic_boundary_conditions.tide.tide_enum import ApproachType
 
 log = logging.getLogger(__name__)

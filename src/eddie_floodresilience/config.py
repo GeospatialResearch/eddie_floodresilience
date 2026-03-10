@@ -1,0 +1,37 @@
+# Copyright © 2021-2026 Geospatial Research Institute Toi Hangarau
+# LICENSE: https://github.com/GeospatialResearch/Digital-Twins/blob/master/LICENSE
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as
+# published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+"""Collection of utils that are used for system and environment configuration."""
+
+import pathlib
+
+from eddie import config
+
+
+class EnvVariable(config.EnvVariable):  # pylint: disable=too-few-public-methods
+    """Encapsulates all environment variable fetching, ensuring proper defaults and types."""
+
+    NIWA_API_KEY = _get_env_variable("NIWA_API_KEY")
+
+    DATA_DIR = pathlib.Path(_get_env_variable("DATA_DIR"))
+    DATA_DIR_MODEL_OUTPUT = pathlib.Path(_get_env_variable("DATA_DIR_MODEL_OUTPUT"))
+    FLOOD_MODEL_DIR = pathlib.Path(_get_env_variable("FLOOD_MODEL_DIR"))
+
+    # NewZealidar config that we must ensure have values.
+    _LIDAR_DIR = _get_env_variable("LIDAR_DIR")
+    _DEM_DIR = _get_env_variable("DEM_DIR")
+    _LAND_FILE = _get_env_variable("LAND_FILE", allow_empty=True)
+    _INSTRUCTIONS_FILE = _get_env_variable("INSTRUCTIONS_FILE")

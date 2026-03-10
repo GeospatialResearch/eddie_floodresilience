@@ -18,19 +18,19 @@
 """Fetch tide data from NIWA using the Tide API based on the specified approach, datum, etc."""
 
 import asyncio
+from datetime import date, timedelta
 import io
 import logging
-from datetime import date, timedelta
 from math import ceil
-from typing import Dict, List, Tuple, Union, Optional
+from typing import Dict, List, Optional, Tuple, Union
 
 import aiohttp
 import geopandas as gpd
 import numpy as np
 import pandas as pd
 
-from eddie import config
-from src.eddie_floodresilience.dynamic_boundary_conditions.tide.tide_enum import DatumType, ApproachType
+from src.eddie_floodresilience import config
+from src.eddie_floodresilience.dynamic_boundary_conditions.tide.tide_enum import ApproachType, DatumType
 
 log = logging.getLogger(__name__)
 

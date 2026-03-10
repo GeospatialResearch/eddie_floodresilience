@@ -21,21 +21,16 @@ and its associated data, and generate the requested river model input for BG-Flo
 """
 
 import logging
-from typing import Union, Optional
+from typing import Optional, Union
 
 import geopandas as gpd
 
-from eddie import config
 from eddie.digitaltwin import setup_environment
-from eddie.digitaltwin.utils import LogLevel, setup_logging, get_catchment_area
-from src.eddie_floodresilience.dynamic_boundary_conditions.river import (
-    river_data_to_from_db,
-    river_network_for_aoi,
-    align_rec_osm,
-    river_inflows,
-    hydrograph,
-    river_model_input
-)
+from eddie.digitaltwin.utils import LogLevel, get_catchment_area, setup_logging
+from src.eddie_floodresilience import config
+from src.eddie_floodresilience.dynamic_boundary_conditions.river import (align_rec_osm, hydrograph,
+                                                                         river_data_to_from_db, river_inflows,
+                                                                         river_model_input, river_network_for_aoi)
 from src.eddie_floodresilience.dynamic_boundary_conditions.river.river_enum import BoundType
 
 log = logging.getLogger(__name__)
