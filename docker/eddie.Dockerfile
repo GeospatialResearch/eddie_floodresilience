@@ -28,7 +28,7 @@ COPY environment.yml .
 RUN mamba env create -f environment.yml
 
 # Make RUN commands use the new environment:
-SHELL ["conda", "run", "-n", "digitaltwin", "/bin/bash", "-c"]
+SHELL ["conda", "run", "-n", "fredt", "/bin/bash", "-c"]
 COPY lib/ lib
 RUN pip install lib/eddie
 
@@ -36,10 +36,10 @@ RUN <<EOF
     # Export conda environment
     echo "Check GeoFabrics is installed to test environment"
     python -c "import geofabrics"
-    echo "Packaging conda environment - digitaltwin"
+    echo "Packaging conda environment - fredt"
     # Pack conda environment to be shared to runtime image
     # Pack current conda environment to temporary tarball
-    conda-pack --ignore-missing-files -n digitaltwin -o /tmp/env.tar
+    conda-pack --ignore-missing-files -n fredt -o /tmp/env.tar
     mkdir /venv
     cd /venv
     # Extract tarball to /venv
