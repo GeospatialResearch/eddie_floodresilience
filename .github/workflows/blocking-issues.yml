@@ -12,4 +12,4 @@ jobs:
     name: Checks for blocking issues
 
     steps:
-      - uses: evi-Lesches/blocking-issues@v2.0.4
+      - uses: Levi-Lesches/blocking-issues@v2.0.4
