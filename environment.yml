@@ -34,7 +34,6 @@ dependencies:
   - geocube==0.5.3 # todo flag for potential removal
   - geopandas==0.14.4
   - gevent==25.9.1
-  - gunicorn==25.1.0
   - libgdal==3.7.0
   - lxml==4.9.3
   - pandas==2.3.3
@@ -53,6 +52,7 @@ dependencies:
   - sqlalchemy
   - pip:
       - geovoronoi==0.4.0 #todo set version; flag for potential removal
+      - gunicorn==25.1.0
       - git+https://github.com/LukeParky/NewZeaLiDAR.git@v0.3
       - git+https://github.com/GeospatialResearch/OWSLib.git
       - pywps==4.7.0 # pywps is available in conda but our fork of OWSLib is required for bounding boxes
