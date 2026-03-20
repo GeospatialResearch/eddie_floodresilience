@@ -1,19 +1,19 @@
-from whitebox_workflows import PhotometricInterpretation, RasterDataType, WbEnvironment
-from whitebox.whitebox_tools import WhiteboxTools
-import math
-from pathlib import Path
+"""
+Generate terrain attributes by processing DEM and roughness data
+mainly using Whitebox package.
+"""
 
+from pathlib import Path
+from dataclasses import dataclass
+from whitebox_workflows import WbEnvironment, Raster
+from whitebox.whitebox_tools import WhiteboxTools
 import xarray as xr
 import rioxarray as rxr
 import numpy as np
 from scipy.ndimage import distance_transform_edt
-
 import geopandas as gpd
 import pandas as pd
-
 from rasterstats import zonal_stats
-
-from typing import Any
 
 wbe = WbEnvironment()
 wbe.verbose = True
@@ -21,56 +21,63 @@ wbe.max_procs = -1
 
 wbt = WhiteboxTools()
 
+@dataclass # Means this is just a container for common variable
 class CommonVariable:
+    """This class contains common variables for later classes in this module"""
+
     def __init__(
             self,
             path: str
-    ):
+    ) -> None:
         """
-        A class contains common variables
+        Declare common variables
 
         Parameters
         -----------
-        path : str
+        path: str
             Path to raster that needs manipulating
         """
         self.path = path
 
 
 class TerrainAttributesGenerator(CommonVariable):
+    """
+    This class is to generate terrain attributes
+    for generating stream attributes
+    """
+
     def __init__(
             self,
             path: str,
             raster_name: str = 'dem'
-    ):
+    ) -> None:
         """
-        A class to generate terrain attributes
+        Declare variables to be used in later functions
 
         Parameters
         ----------
-        path : str
+        path: str
             Path to raster that needs manipulating
-        raster_name : str = 'dem'
+        raster_name: str = 'dem'
             Name of the raster. Mostly 'dem' and 'roughness'
         """
         super().__init__(path)
         self.raster_name = raster_name
 
-
     def raster_resampling(
             self,
-            resolution_crs_4326 : float = 0.00045,
-            resampling_method : str = 'nn'
+            resolution_crs_4326: float = 0.00045,
+            resampling_method: str = 'nn'
     ) -> None:
         """
         Resample raster to a specific resolution (good with GeoTiff file)
 
         Parameters
         -----------
-        resolution_crs_4326 : float = 0.00045
+        resolution_crs_4326: float = 0.00045
             Resolution value in crs 4326. Default is 0.00045 (~100 m)
-        resampling_method : str = 'nn'
-            Resampling methods includes "nn" (nearest neighbor), 'bilinear',
+        resampling_method: str = 'nn'
+            Resampling methods includes "nn" (nearest neighbor), 'bi-linear',
             and 'cc' (cubic convolution). Default is 'nn'
         """
         if not Path(fr"{self.path}\{self.raster_name}_for_wflow_coarser.tif").is_file():
@@ -84,17 +91,16 @@ class TerrainAttributesGenerator(CommonVariable):
         else:
             print(f"'{self.raster_name}_for_wflow_coarser.tif' already exists!")
 
-
     def raster_fill_depression(
             self,
-            flat_increment : float = 0.0001
+            flat_increment: float = 0.0001
     ) -> None:
         """
         Fill depressions in raster (specifically in DEM)
 
         Parameters
         ----------
-        flat_increment : float = 0.0001
+        flat_increment: float = 0.0001
             If flat surfaces suck as lakes have the slope 0 it will act like a sink.
             This parameter will set a small slope to flat areas. Default is 0.0001.
             https://github.com/williamlidberg/Whitebox-tutorial/blob/main/streams.py
@@ -122,9 +128,6 @@ class TerrainAttributesGenerator(CommonVariable):
             raster_no_deps_crs = rxr.open_rasterio(fr"{self.path}\{self.raster_name}_for_wflow_coarser_nodeps.tif")
             raster_no_deps_crs = raster_no_deps_crs.rio.write_crs('EPSG:4326')
             raster_no_deps_crs.rio.to_raster(fr"{self.path}\{self.raster_name}_for_wflow_coarser_nodeps_crs.tif")
-
-
-
         else:
             print(f"'{self.raster_name}_for_wflow_coarser_nodeps_crs.tif' already exists!")
 
@@ -148,8 +151,7 @@ class TerrainAttributesGenerator(CommonVariable):
                 fr"{self.path}\d8_pointer.tif"
             )
         else:
-            print(f"'d8_pointer.tif' already exists!")
-
+            print("'d8_pointer.tif' already exists!")
 
     def d8_stream_generator(
             self,
@@ -161,28 +163,28 @@ class TerrainAttributesGenerator(CommonVariable):
 
         Parameters
         -----------
-        threshold : int = 10000
-            Minimum number of cells/upslope area required to initiate and main a channel.
-        catchment_area : bool = True
+        threshold: int = 10000
+            Minimum number of cells/up-slope area required to initiate and main a channel.
+        catchment_area: bool = True
             If True, flow accumulation under catchment are format will be added
             If False, only flow accumulation under cell format will be generated
         """
         if not Path(fr"{self.path}\streams_d8.tif").is_file():
             # Generate D8 flow accumulation - output is 'cell' type
             wbt.d8_flow_accumulation(
-                i = fr"{self.path}\{self.raster_name}_for_wflow_coarser_nodeps_crs.tif",
-                out_type = 'cells',
-                output = fr'{self.path}\flow_acc_d8_cells.tif'
+                i=fr"{self.path}\{self.raster_name}_for_wflow_coarser_nodeps_crs.tif",
+                out_type='cells',
+                output=fr'{self.path}\flow_acc_d8_cells.tif'
             )
 
             # Extract streams from the flow accumulation
             wbt.extract_streams(
-                flow_accum = fr"{self.path}\flow_acc_d8_cells.tif",
-                output = fr"{self.path}\streams_d8.tif",
-                threshold = threshold
+                flow_accum=fr"{self.path}\flow_acc_d8_cells.tif",
+                output=fr"{self.path}\streams_d8.tif",
+                threshold=threshold
             )
         else:
-            print(f"'streams_d8.tif' already exists!")
+            print("'streams_d8.tif' already exists!")
 
         if catchment_area:
             if not Path(fr'{self.path}\flow_acc_d8_area_m2.tif').is_file():
@@ -193,10 +195,9 @@ class TerrainAttributesGenerator(CommonVariable):
                     output=fr'{self.path}\flow_acc_d8_area_m2.tif'
                 )
             else:
-                print(fr"'flow_acc_d8_area_m2.tif' already exists!")
+                print("'flow_acc_d8_area_m2.tif' already exists!")
         else:
             pass
-
 
     def strahler_stream_order_generator(self) -> None:
         """
@@ -219,11 +220,9 @@ class TerrainAttributesGenerator(CommonVariable):
             output=fr"{self.path}\streams_d8.shp"
         )
 
-
     def raster_to_points_dataframe(
             self,
             file_name: str,
-            output_name: str,
             column_name: str
     ) -> gpd.GeoDataFrame:
         """
@@ -233,8 +232,6 @@ class TerrainAttributesGenerator(CommonVariable):
         -----------
         file_name : str
             Name of the file that will be used to convert to points
-        output_name : str
-            Name of output file that contains point shape type
         column_name : str
             Name of column that is converted from 'VALUE1' to
             Options are mostly 'upstream_area_m2' and 'strahler'
@@ -265,13 +262,13 @@ class TerrainAttributesGenerator(CommonVariable):
 
         return points_df
 
-
     def roughness_to_manning(
             self,
-            roughness: Any,
+            roughness: xr.DataArray,
             h: float = 1
-    ):
+    ) -> None:
         """
+        Convert raster of roughness to manning's n
 
         Parameters
         ----------
@@ -279,13 +276,12 @@ class TerrainAttributesGenerator(CommonVariable):
             A raster of roughness data
         h : float = 1
             Value of depth. Default is 1
-
-        Returns
-        -------
-
         """
         # Convert roughness length to Manning's n
-        manning_n = (0.41 * (h ** (1 / 6)) * ((h / roughness) - 1)) / (np.sqrt(9.80665) * (1 + (h / roughness) * (np.log(h / roughness) - 1)))
+        ratio_h_roughness = h / roughness
+        numerator = 0.41 * (h ** (1 / 6)) * (ratio_h_roughness - 1)
+        denominator = np.sqrt(9.80665) * (1 + ratio_h_roughness * (np.log(ratio_h_roughness) - 1))
+        manning_n = numerator / denominator
 
         # Write out Manning's n
         manning_n.rio.to_raster(
@@ -294,12 +290,14 @@ class TerrainAttributesGenerator(CommonVariable):
 
 
 class StreamTopologyGenerator(CommonVariable):
+    """This class is to generate stream topology data"""
+
     def __init__(
             self,
             path: str
-    ):
+    ) -> None:
         """
-        A class that generates stream topology: 'upstream_area_m2' and 'strahler'
+        Generate stream topology: 'upstream_area_m2' and 'strahler'
 
         Parameters
         ----------
@@ -308,7 +306,6 @@ class StreamTopologyGenerator(CommonVariable):
         """
         super().__init__(path)
         self.stream_topology_data = TerrainAttributesGenerator(self.path, 'dem')
-
 
     def merge_stream_topology_points(self) -> gpd.GeoDataFrame:
         """
@@ -324,14 +321,12 @@ class StreamTopologyGenerator(CommonVariable):
         # Generate points that include upstream area under geopandas dataframe
         points_area_m2 = self.stream_topology_data.raster_to_points_dataframe(
             'flow_acc_d8_area_m2',
-            'stream_pixels_pts_from_flow_acc',
             'upstream_area_m2'
         )
 
         # Generate points that include strahler order under geopandas dataframe
         points_strahler_order = self.stream_topology_data.raster_to_points_dataframe(
             'strahler_d8',
-            'stream_pixels_pts_from_strahler',
             'strahler'
         )
 
@@ -353,24 +348,27 @@ class StreamTopologyGenerator(CommonVariable):
         # - For 'strahler', as strahler order increases when tributatires merge,
         # the maximum order ensures the feature keeps the correct stream hierarchy classification.
         agg_upstream_area_and_strahler = (
-            points_merge.groupby('FID')
-                .agg(
-                    upstream_area = ('upstream_area_m2', 'max'),
-                    strahler = ('strahler', 'max')
+            points_merge.groupby('FID').agg(
+                upstream_area=('upstream_area_m2', 'max'),
+                strahler=('strahler', 'max')
             )
             .reset_index()
         )
 
         return agg_upstream_area_and_strahler
 
-
     def merge_upstream_area_strahler_stream_geometry(
             self,
-            agg_upstream_area_and_strahler
-    ):
+            agg_upstream_area_and_strahler: gpd.GeoDataFrame
+    ) -> None:
         """
         Merge dataframes of 'upstream_area_m2' and 'strahler' with 'geometry' of stream using FID
         and write out the merged dataframe
+
+        Parameters
+        -----------
+        agg_upstream_area_and_strahler: gpd.DataFrame
+            Geopandas dataframe that contains stream attributes "upstream_area_m2" and "strahler"
         """
         # Read D8 stream dataframe
         streams = gpd.read_file(fr"{self.path}\streams_d8.shp")
@@ -401,13 +399,10 @@ class StreamTopologyGenerator(CommonVariable):
             fr"{self.path}\streams_d8_area_strahler.shp"
         )
 
-
     def dataframe_upstream_area_strahler_geometry_generator(
             self,
     ) -> None:
-        """
-        Generate geodataframe of 'upstream_area_m2' and 'strahler'
-        """
+        """Generate geodataframe of 'upstream_area_m2' and 'strahler'"""
         # Resample raster
         self.stream_topology_data.raster_resampling(
             0.00045,
@@ -438,13 +433,16 @@ class StreamTopologyGenerator(CommonVariable):
 
 
 class StreamHydraulicsGenerator(CommonVariable):
+    """This class is to generate hydraulic stream attributes"""
+
     def __init__(
             self,
             path: str,
             outlet_gauge_locations_file: str,
             streams_bankfull_stage: float = 1.5
-    ):
+    ) -> None:
         """
+        Generate hydraulic stream attributes
 
         Parameters
         -----------
@@ -463,18 +461,16 @@ class StreamHydraulicsGenerator(CommonVariable):
         self.stream_topology_data = TerrainAttributesGenerator(self.path, 'dem')
         self.roughness_data = TerrainAttributesGenerator(self.path, 'roughness')
 
-
     def watershed_generator(
             self,
             snap_dist: float = 5.0,
             filter_size: int = 5
-
-    ) -> Any:
+    ) -> Raster:
         """
         Generate watershed based on D8 pointer (flow direction) and list of points of outlet and gauges
-        
+
         Parameters
-        -----------
+        ----------
         snap_dist : float = 5.0
             Measures in map units (e.g. meters, default is meters) the given maximum distance
             between the pour points to the location coincident with the nearest stream cell.
@@ -487,10 +483,9 @@ class StreamHydraulicsGenerator(CommonVariable):
 
         Returns
         -------
-        watershed_polygon : Any
-            Watershed that leads to the outlet
+        outlet_watershed : Raster
+            A raster showing watershed within DEM
         """
-
         # Read stream raster
         streams = wbe.read_raster(fr"{self.path}\streams_d8.tif")
 
@@ -504,13 +499,13 @@ class StreamHydraulicsGenerator(CommonVariable):
         outlet_gauge_points_on_streams = wbe.jenson_snap_pour_points(
             outlet_gauge_points,
             streams,
-            snap_dist = snap_dist
+            snap_dist=snap_dist
         )
 
         # Extract watershed of the outlet
         outlet_watershed = wbe.watershed(
-            d8_pointer = d8_pointer,
-            pour_points = outlet_gauge_points_on_streams
+            d8_pointer=d8_pointer,
+            pour_points=outlet_gauge_points_on_streams
         )
 
         # Write out watershed raster
@@ -537,18 +532,26 @@ class StreamHydraulicsGenerator(CommonVariable):
 
         return outlet_watershed
 
-
     def stream_watershed_raster_generator(
             self,
-            watershed_raster: Any
-    ):
+            outlet_watershed: Raster
+    ) -> tuple[Raster, Raster]:
         """
+        Generate streams within watershed that contributes to the outlet
+
+        Parameters
+        ----------
+        outlet_watershed: Raster
+            A raster shows watershed within DEM
 
         Returns
         -------
-
+        streams_watershed : Raster
+            A raster of watershed that contributes to the outlet
+        streams_watershed_raster : Raster
+            A raster of  watershed that contributes to the outlet
+            and contains more information
         """
-
         # Read stream raster
         streams = wbe.read_raster(fr"{self.path}\streams_d8.tif")
 
@@ -559,7 +562,7 @@ class StreamHydraulicsGenerator(CommonVariable):
         dem_no_deps = wbe.read_raster(fr"{self.path}\dem_for_wflow_coarser_nodeps_crs.tif")
 
         # Filter to select only streams inside the watershed
-        streams_watershed = streams * watershed_raster
+        streams_watershed = streams * outlet_watershed
 
         # Write out raster with streams within watershed
         # (this stream data just has 1 and 0 values)
@@ -593,20 +596,14 @@ class StreamHydraulicsGenerator(CommonVariable):
         streams_watershed_raster = wbe.vector_lines_to_raster(
             streams_watershed_vector_more_info,
             'FID',
-            base_raster = dem_no_deps,
-            zero_background = True
+            base_raster=dem_no_deps,
+            zero_background=True
         )
 
         return streams_watershed, streams_watershed_raster
 
-
-    def hand_generator(self):
-        """
-
-        Returns
-        -------
-
-        """
+    def hand_generator(self) -> None:
+        """Generate height above nearest drainage (HAND)"""
         # Read streams within watershed
         streams_watershed = wbe.read_raster(fr"{self.path}\streams_watershed.tif")
 
@@ -626,16 +623,8 @@ class StreamHydraulicsGenerator(CommonVariable):
             compress=False
         )
 
-    def stream_bankfull_width_raster_generator(self):
-        """
-
-        Parameters
-        -----------
-
-        Returns
-        -------
-
-        """
+    def stream_bankfull_width_raster_generator(self) -> None:
+        """Generate stream bankfull width raster"""
         # Read streams within watershed using rioxarray
         streams_watershed = rxr.open_rasterio(fr"{self.path}\streams_watershed.tif").squeeze()
 
@@ -643,13 +632,14 @@ class StreamHydraulicsGenerator(CommonVariable):
         hand = rxr.open_rasterio(fr"{self.path}\hand.tif").squeeze()
 
         # Set up bankfull
-        bankfull = (hand <= self.streams_bankfull_stage)
+        bankfull = hand <= self.streams_bankfull_stage
 
         # Get values of bankfull and stream
         # bankfull_np tells us where the river is
         # stream_np tells us where the streamline is
         bankfull_np = bankfull.values  # Raster where river area = 1 (True) and land = 0 (False)
-        stream_np = streams_watershed.values > 0  # A mask of stream centreline pixels (True = this pixel is part of the stream)
+        # Generate a mask of stream centreline pixels (True = this pixel is part of the stream)
+        stream_np = streams_watershed.values > 0
 
         # Calculate distance
         # Get pixel size: Each pixel represents X meters on the ground
@@ -657,9 +647,7 @@ class StreamHydraulicsGenerator(CommonVariable):
 
         # Convert degrees to meters
         lat = float(bankfull.y.mean())  # Get latitude
-        meters_per_degree = (
-                111300 * np.cos(np.deg2rad(lat))
-        )
+        meters_per_degree = (111300 * np.cos(np.deg2rad(lat)))
         pixel_size_meter = pixel_size * meters_per_degree
 
         # Measure distance to the river bank:
@@ -667,7 +655,8 @@ class StreamHydraulicsGenerator(CommonVariable):
         # It here is the function "distance_transform_edt"
         # So pixels near the bank --> small distahce
         # Pixels near the center of the river --> larger distance
-        # For example: bank 1m 2m 3m 4m 3m 2m 1m bank (so near the bank --> small distance, near the middle --> larger distance)
+        # For example: bank 1m 2m 3m 4m 3m 2m 1m bank
+        # (so near the bank --> small distance, near the middle --> larger distance)
         # ==> Logic is: How far am I from the river edge?
         distance = distance_transform_edt(bankfull_np) * pixel_size_meter
 
@@ -683,15 +672,15 @@ class StreamHydraulicsGenerator(CommonVariable):
         # Convert numpy array to xarray data array
         streams_bankfull_width_da = xr.DataArray(
             streams_bankfull_width,
-            coords = hand.coords,
-            dims = hand.dims,
-            name = "bankfull_width"
+            coords=hand.coords,
+            dims=hand.dims,
+            name="bankfull_width"
         )
 
         # Add crs
         streams_bankfull_width_da.rio.write_crs(
             hand.rio.crs,
-            inplace = True
+            inplace=True
         )
 
         # Write out
@@ -699,14 +688,16 @@ class StreamHydraulicsGenerator(CommonVariable):
             fr"{self.path}\streams_bankfull_width.tif"
         )
 
-
-    def buffer_streams_watershed(self):
+    def buffer_streams_watershed(self) -> tuple[gpd.GeoDataFrame, gpd.GeoDataFrame]:
         """
         Buffer the stream linestrings to capture stream pixels
 
         Returns
         -------
-
+        streams_watershed_vector_more_info : gpd.GeoDataFrame
+            Converted-to-vector streams within watershed with more information
+        streams_watershed_buffer : gpd.GeoDataFrame
+            Buffered streams vector within watershed that can intersect with pixels
         """
         # Read streams within watershed using geopandas
         streams_watershed_vector_more_info = gpd.read_file(
@@ -723,28 +714,32 @@ class StreamHydraulicsGenerator(CommonVariable):
         streams_watershed_buffer = streams_watershed_vector_more_info.copy()
         streams_watershed_buffer['geometry'] = streams_watershed_buffer.geometry.buffer(pixel_size / 2)
 
-        return streams_watershed_buffer, streams_watershed_vector_more_info
-
+        return streams_watershed_vector_more_info, streams_watershed_buffer
 
     def assign_streams_hydraulic_values(
             self,
-            streams_watershed_buffer,
-            streams_watershed_vector_more_info,
-            hydraulic_name
-    ):
+            streams_watershed_vector_more_info: gpd.GeoDataFrame,
+            streams_watershed_buffer: gpd.GeoDataFrame,
+            hydraulic_name: str
+    ) -> None:
         """
         Assign stream hydraulic values to each stream segment in the vector network
 
-        Returns
-        -------
-
+        Parameters
+        -----------
+        streams_watershed_vector_more_info: gpd.GeoDataFrame
+            Converted-to-vector streams within watershed with more information
+        streams_watershed_buffer: gpd.GeoDataFrame
+            Buffered streams vector within watershed that can intersect with pixels
+        hydraulic_name: str
+            Name of hydraulic stream attributes
         """
         # Extract stream hydraulic values for each reach
         streams_hydraulic_values = zonal_stats(
-            vectors = streams_watershed_buffer,
-            raster = fr"{self.path}\streams_{hydraulic_name}.tif",
-            stats = ['mean'],
-            all_touched = True # includes all pixels by touching the buffered ones
+            vectors=streams_watershed_buffer,
+            raster=fr"{self.path}\streams_{hydraulic_name}.tif",
+            stats=['mean'],
+            all_touched=True  # includes all pixels by touching the buffered ones
         )
 
         # Convert list of dicts to dataframe
@@ -761,32 +756,20 @@ class StreamHydraulicsGenerator(CommonVariable):
             fr"{self.path}\streams_{hydraulic_name}_linestring.shp"
         )
 
-
-    def stream_bankfull_width_linestring_generator(self):
-        """
-
-        Returns
-        -------
-
-        """
+    def stream_bankfull_width_linestring_generator(self) -> None:
+        """Generate streams' bankfull width vector"""
         # Buffer stream linestring to capture stream pixels
-        streams_watershed_buffer, streams_watershed_vector_more_info = self.buffer_streams_watershed()
+        streams_watershed_vector_more_info, streams_watershed_buffer = self.buffer_streams_watershed()
 
         # Assign stream bankfull width to stream linestring
         self.assign_streams_hydraulic_values(
-            streams_watershed_buffer,
             streams_watershed_vector_more_info,
+            streams_watershed_buffer,
             'bankfull_width'
         )
 
-
-    def stream_manning_linestring_generator(self):
-        """
-
-        Returns
-        -------
-
-        """
+    def stream_manning_linestring_generator(self) -> None:
+        """Generate streams' manning's n"""
         # Resample roughness raster
         self.roughness_data.raster_resampling(
             0.00045,
@@ -805,23 +788,17 @@ class StreamHydraulicsGenerator(CommonVariable):
         )
 
         # Buffer stream linestring to capture stream pixels
-        streams_watershed_buffer, streams_watershed_vector_more_info = self.buffer_streams_watershed()
+        streams_watershed_vector_more_info, streams_watershed_buffer = self.buffer_streams_watershed()
 
         # Assign stream bankfull width to stream linestring
         self.assign_streams_hydraulic_values(
-            streams_watershed_buffer,
             streams_watershed_vector_more_info,
+            streams_watershed_buffer,
             'manning'
         )
 
-
-    def stream_slope_linestring_generator(self):
-        """
-
-        Returns
-        -------
-
-        """
+    def stream_slope_linestring_generator(self) -> None:
+        """Generate streams' slopes"""
         # Read DEM that its depressions are filled
         dem_no_deps = wbe.read_raster(fr"{self.path}\dem_for_wflow_coarser_nodeps_crs.tif")
 
@@ -839,26 +816,37 @@ class StreamHydraulicsGenerator(CommonVariable):
         )
 
         # Buffer stream linestring to capture stream pixels
-        streams_watershed_buffer, streams_watershed_vector_more_info = self.buffer_streams_watershed()
+        streams_watershed_vector_more_info, streams_watershed_buffer = self.buffer_streams_watershed()
 
         # Assign stream bankfull width to stream linestring
         self.assign_streams_hydraulic_values(
-            streams_watershed_buffer,
             streams_watershed_vector_more_info,
+            streams_watershed_buffer,
             'slope'
         )
 
     def bankfull_discharge_calculation(
             self,
-            streams_bankfull_width,
-            streams_slope,
-            streams_manning
-    ):
+            streams_bankfull_width: gpd.GeoDataFrame,
+            streams_slope: gpd.GeoDataFrame,
+            streams_manning: gpd.GeoDataFrame
+    ) -> pd.Series:
         """
+        Generate calculation method of streams' bankfull discharge
+
+        Parameters
+        ----------
+        streams_bankfull_width: gdp.GeoDataFrame
+            Streams' bankfull width vector
+        streams_slope: gdp.GeoDataFrame
+            Streams' slope vector
+        streams_manning: gdp.GeoDataFrame
+            Streams' manning's n vector
 
         Returns
         -------
-
+        bankfull_discharge : gdp.GeoDataFrame
+            Stream's bankfull discharge values
         """
         # Calculate cross-sectional area (rectangular)
         cross_sectional_area = streams_bankfull_width * self.streams_bankfull_stage
@@ -870,17 +858,20 @@ class StreamHydraulicsGenerator(CommonVariable):
         hydraulic_radius = cross_sectional_area / wetted_perimeter
 
         # Calculate bankfull discharge
-        bankfull_discharge = (1 / streams_manning) * wetted_perimeter * (hydraulic_radius ** (2/3)) * np.sqrt(streams_slope)
+        streams_manning_calc = 1 / streams_manning
+        hydraulic_radius_calc = hydraulic_radius ** (2 / 3)
+        bankfull_discharge = streams_manning_calc * wetted_perimeter * hydraulic_radius_calc * np.sqrt(streams_slope)
 
         return bankfull_discharge
 
-
-    def stream_bankfull_discharge_generator(self):
+    def stream_bankfull_discharge_generator(self) -> pd.Series:
         """
+        Generate streams' bankfull discharge
 
         Returns
         -------
-
+        streams_bankfull_discharge : pd.Series
+            Streams' bankfull discharge
         """
         # Read stream bankfull width shapefile
         streams_bankfull_width = gpd.read_file(fr"{self.path}\streams_bankfull_width_linestring.shp").bankfull_w
@@ -888,22 +879,16 @@ class StreamHydraulicsGenerator(CommonVariable):
         streams_slope = gpd.read_file(fr"{self.path}\streams_slope_linestring.shp").slope
 
         # Generate stream bankfull discharge
-        streams_discharge = self.bankfull_discharge_calculation(
+        streams_bankfull_discharge = self.bankfull_discharge_calculation(
             streams_bankfull_width,
             streams_slope,
             streams_manning
         )
 
-        return streams_discharge
+        return streams_bankfull_discharge
 
-
-    def stream_bankfull_width_discharge_generator(self):
-        """
-
-        Returns
-        -------
-
-        """
+    def stream_bankfull_width_discharge_generator(self) -> None:
+        """Generate streams' bankfull width and discharge"""
         # Generate stream bankfull discharge
         streams_bankfull_discharge = self.stream_bankfull_discharge_generator()
 
@@ -921,14 +906,8 @@ class StreamHydraulicsGenerator(CommonVariable):
         # Write out
         streams_bankfull_width_discharge.to_file(fr"{self.path}\streams_bankfull_width_discharge.gpkg")
 
-
-    def dataframe_stream_bankfull_width_discharge_generator(self):
-        """
-
-        Returns
-        -------
-
-        """
+    def dataframe_stream_bankfull_width_discharge_generator(self) -> None:
+        """Generate geopandas dataframe that contains streams' bankfull width and discharge"""
         # Resample raster
         self.stream_topology_data.raster_resampling(
             0.00045,
@@ -960,9 +939,6 @@ class StreamHydraulicsGenerator(CommonVariable):
 
         # Generate stream bankfull width raster
         self.stream_bankfull_width_raster_generator()
-
-        # Buffer stream linestring to capture stream pixels
-        self.buffer_streams_watershed()
 
         # Generate stream bankfull width linestring
         self.stream_bankfull_width_linestring_generator()
