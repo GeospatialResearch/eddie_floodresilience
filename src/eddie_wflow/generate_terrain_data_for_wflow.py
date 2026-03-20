@@ -1,34 +1,31 @@
+"""Generate data for wflow from terrain attributes generated before"""
+
 import os
+from typing import Tuple
+
 import xarray as xr
 import numpy as np
 import geopandas as gpd
-
 import pandas as pd
-
-# pyflwdir
 import pyflwdir
-from PyQt5.QtGui import QVector2D
-
-# hydromt
-from hydromt import DataCatalog, flw
-
-from pathlib import Path
-
-# plot
-import matplotlib.pyplot as plt
-from matplotlib import cm, colors
+from hydromt import flw
 
 
 class TerrainDataWflow:
+    """This class is to generate terrain data for wflow"""
+
     def __init__(
             self,
-            path
-    ):
+            path: str
+    ) -> None:
         """
+        Generate terrain data for wflow
         https://deltares.github.io/hydromt_wflow/stable/_examples/prepare_ldd.html
+
         Parameters
-        ----------
-        path
+        -----------
+        path: str
+            Path to raster that needs manipulating
         """
         self.path = path
         self.ds_hydro_org = xr.open_dataarray(fr"{self.path}\dem_for_wflow_coarser_nodeps_crs.tif")
@@ -39,13 +36,22 @@ class TerrainDataWflow:
             self.gdf_riv_org['uparea'], errors='coerce'
         )
 
-
-    def d8_flow_direction_generator(self):
+    def d8_flow_direction_generator(self) -> Tuple[
+        pyflwdir.FlwdirRaster,
+        xr.Dataset,
+        tuple[str, ...]
+    ]:
         """
+        Generate D8 flow direction
 
         Returns
         -------
-
+        flwdir : pyflwdir.FlwdirRaster
+            Streams' flow direction
+        ds_hydro : xr.Dataset
+            Array of terrain's information
+        dims : tuple[str, ...]
+            Dimension of ds_hydro array
         """
         # Derive flow directions with outlets at the edges
         da_flwdir = flw.d8_from_dem(
@@ -66,40 +72,58 @@ class TerrainDataWflow:
             check_ftype=True
         )
 
-        # Create a new ds_hydro dataset with the riverburn flow directions
+        # Create a new ds_hydro dataset with the river-burnt flow directions
         ds_hydro = da_flwdir.to_dataset(name='flwdir')
         ds_hydro = ds_hydro.raster.gdal_compliant()
 
-        # Extract dimesions
+        # Extract dimensions
         dims = ds_hydro.raster.dims
 
         return flwdir, ds_hydro, dims
 
-
     def terrain_and_stream_generator(
             self,
-            flwdir,
-            ds_hydro,
-            dims,
-            long_name,
-            units,
-            variable_name
-    ):
+            flwdir: pyflwdir.FlwdirRaster,
+            ds_hydro: xr.Dataset,
+            dims: tuple[str, ...],
+            long_name: str,
+            units: str,
+            variable_name: str
+    ) -> xr.Dataset:
         """
+        Generate dataset of terrain and stream dataset
+
+        Parameters
+        ----------
+        flwdir : pyflwdir.FlwdirRaster
+            Streams' flow direction
+        ds_hydro : xr.Dataset
+            Array of terrain's information
+        dims : tuple[str, ...]
+            Dimension of ds_hydro array
+        long_name : str
+            Name of terrain attributes like slope, basin id, etc.
+        units : str
+            Unit of the terrain attributes
+        variable_name : str
+            Name of the variable showing the terrain attributes
 
         Returns
         -------
-
+        ds_hydro : xr.Dataset
+            Array of terrain's information in which other data were added
         """
+        # Generate terrain dataset
         terrain_data = flwdir.dem_adjust(
-            elevtn = self.ds_hydro_org.squeeze().values
+            elevtn=self.ds_hydro_org.squeeze().values
         )
-        attrs = dict(
-            _FillValue = -9999,
-            long_name = long_name,
-            units = units
-        )
+        attrs = {
+            "_FillValue": -9999,
+            "long_name": long_name,
+            "units": units
+        }
 
+        # Add terrain/stream attribute
         ds_hydro[f'{variable_name}'] = xr.Variable(
             dims,
             terrain_data,
@@ -108,32 +132,40 @@ class TerrainDataWflow:
 
         return ds_hydro
 
-
     def slope_generator(
             self,
-            ds_hydro,
-            dims
-    ):
+            ds_hydro: xr.Dataset,
+            dims: tuple[str, ...]
+    ) -> xr.Dataset:
         """
+        Generate terrain attributes - slope
+
+        Parameters
+        ----------
+        ds_hydro: xr.Dataset
+            Array of terrain's information used to add slope
+        dims:
+            Dimension of ds_hydro
 
         Returns
         -------
-
+        ds_hydro : xr.Dataset
+            Array of terrain's information in which slope data were added
         """
         # Generate slope
         slope = pyflwdir.dem.slope(
-            elevtn = ds_hydro['elevtn'].values,
-            nodata = ds_hydro['elevtn'].raster.nodata,
-            latlon = ds_hydro.raster.crs.is_geographic, # True if geographic crs, False if projected crs
-            transform = ds_hydro['elevtn'].raster.transform
+            elevtn=ds_hydro['elevtn'].values,
+            nodata=ds_hydro['elevtn'].raster.nodata,
+            latlon=ds_hydro.raster.crs.is_geographic,  # True if geographic crs, False if projected crs
+            transform=ds_hydro['elevtn'].raster.transform
         )
 
         # Generate attributes for the slope
-        attrs = dict(
-            _FillValue = -9999,
-            long_name = 'lndslp',
-            units = 'm/m'
-        )
+        attrs = {
+            "_FillValue": -9999,
+            "long_name": 'lndslp',
+            "units": 'm/m'
+        }
 
         # Add to hydro dataset
         ds_hydro['lndslp'] = xr.Variable(
@@ -144,36 +176,48 @@ class TerrainDataWflow:
 
         return ds_hydro
 
-
     def basin_generator(
             self,
-            flwdir,
-            ds_hydro,
-            dims
-    ):
+            flwdir: pyflwdir.FlwdirRaster,
+            ds_hydro: xr.Dataset,
+            dims: tuple[str, ...]
+    ) -> Tuple[xr.Dataset, gpd.GeoDataFrame]:
         """
+        Generate terrain attributes - basin
+
+        Parameters
+        ----------
+        flwdir: pyflwdir.FlwdirRaster
+            Streams' flow direction
+        ds_hydro: xr.Dataset
+            Array of terrain's information used to add basin
+        dims: tuple[str, ...]
+            Dimension of ds_hydro
 
         Returns
         -------
-
+        ds_hydro : xr.Dataset
+            Array of terrain's information in which basin data were added
+        gdf_basins : gpd.GeoDataFrame
+            Basin polygons
         """
         # Generate basin
         basins = flwdir.basins(
-            idxs = flwdir.idxs_pit
+            idxs=flwdir.idxs_pit
         ).astype(np.int32)
 
         # Generate attributes
-        attrs = dict(
-            _FillValue = 0,
-            long_name = 'basin ids',
-            units='-'
-        )
+        attrs = {
+            "_FillValue": 0,
+            "long_name": 'basin ids',
+            "units": '-'
+        }
 
         # Add basins to the hydro dataset
         ds_hydro['basins'] = xr.Variable(
             dims,
             basins,
-            attrs = attrs
+            attrs=attrs
         )
 
         # Add basins to geopandas dataframe
@@ -181,15 +225,24 @@ class TerrainDataWflow:
 
         return ds_hydro, gdf_basins
 
-
     def write_out_hydro_dataset(
             self,
-            ds_hydro,
-            gdf_basins
-    ):
+            ds_hydro: xr.Dataset,
+            gdf_basins: gpd.GeoDataFrame
+    ) -> None:
+        """
+        Generate terrain attributes - basin
+
+        Parameters
+        ----------
+        ds_hydro: xr.Dataset
+            Array of terrain's information
+        gdf_basins: gpd.GeoDataFrame
+            Basin polygons
+        """
         # Write out hydro dataset
         ds_hydro.raster.to_mapstack(
-            root = os.path.join(
+            root=os.path.join(
                 self.path,
                 'merit_hydro'
             ),
@@ -198,7 +251,7 @@ class TerrainDataWflow:
 
         # Rename basins column
         gdf_basins = gdf_basins.rename(
-            columns = {'value': 'basid'}
+            columns={'value': 'basid'}
         )
 
         # Write out basin dataframe
@@ -209,11 +262,8 @@ class TerrainDataWflow:
             )
         )
 
-
-    def terrain_data_for_wflow_generator(
-            self
-    ):
-
+    def terrain_data_for_wflow_generator(self) -> None:
+        """Generate terrain data for wflow"""
         # Generate D8 flow direction
         flwdir, ds_hydro, dims = self.d8_flow_direction_generator()
 

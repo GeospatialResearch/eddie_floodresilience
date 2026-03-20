@@ -1,16 +1,17 @@
-import rioxarray as rxr
-import geopandas as gpd
+"""Manipulate terrain data for wflow"""
+
 import os
+import rioxarray as rxr
 
 
 def value_change(
-        shapefile_func,
-        file_need_changing_func,
-        value_func,
-        inside=True
-):
+        shapefile_func: str,
+        file_need_changing_func: str,
+        value_func: float,
+        inside: bool = True
+) -> None:
     """
-    A function to change pixel values inside or outside polygons
+    Change pixel values inside or outside polygons
 
     Parameters
     ----------
@@ -20,8 +21,9 @@ def value_change(
         Name and path of changed file
     value_func: float
         Replaced value
-    inside (boolean):
-        If True, change values inside, else, change values outside
+    inside: bool = True
+        If True, change values inside, else, change values outside.
+        Default is True
     """
     # Set up value changing command
     if inside:
@@ -35,6 +37,8 @@ def value_change(
 
 
 class TerrainFilter:
+    """This class is to filter terrain data for wflow"""
+
     def __init__(
             self,
             path: str,
@@ -43,9 +47,9 @@ class TerrainFilter:
             roughness: bool = True,
             sea_value: float = -9999,
             nodata_value: float = -9999
-    ):
+    ) -> None:
         """
-        A class to filter terrain data for wflow
+        Filter terrain data for wflow
 
         Parameters
         -----------
@@ -69,10 +73,8 @@ class TerrainFilter:
         self.sea_value = sea_value
         self.nodata_value = nodata_value
 
-    def dem_crs_conversion(self):
-        """
-        Convert DEM CRS. Here default is to convert DEM CRS from 2193 to 4326
-        """
+    def dem_crs_conversion(self) -> None:
+        """Convert DEM CRS. Here default is to convert DEM CRS from 2193 to 4326"""
         # Get DEM
         dem = rxr.open_rasterio(fr"{self.path}\8m_geofabric.nc")
 
@@ -89,11 +91,8 @@ class TerrainFilter:
         else:
             dem_converted_crs.rio.to_raster(fr"{self.path}\dem_converted_crs.tif")
 
-
-    def remove_sea(self):
-        """
-        Clip sea area mainly in DEM and roughness
-        """
+    def remove_sea(self) -> None:
+        """Clip sea area mainly in DEM and roughness"""
         # Get New Zealand shapefile
         nz_shapefile = fr"{self.path}\nz_coastline_4326.shp"
 
@@ -105,11 +104,8 @@ class TerrainFilter:
         value_change(nz_shapefile, dem, self.sea_value, False)
         value_change(nz_shapefile, roughness, self.sea_value, False)
 
-
-    def nodata_filling(self):
-        """
-        Fill nodata value with -9999
-        """
+    def nodata_filling(self) -> None:
+        """Fill nodata value with -9999"""
         # Fill the nodata value
         dem_nosea = rxr.open_rasterio(fr"{self.path}\dem_converted_crs.tif")
         dem_replace_nodata = dem_nosea.fillna(self.nodata_value)
@@ -121,11 +117,8 @@ class TerrainFilter:
         roughness_write_nodata = roughness_replace_nodata.rio.write_nodata(self.nodata_value)
         roughness_write_nodata.rio.to_raster(fr"{self.path}\roughness_for_wflow.tif")
 
-
-    def filter_dem_for_wflow(self):
-        """
-        Convert DEM into version that can be used by wflow
-        """
+    def filter_dem_for_wflow(self) -> None:
+        """Convert DEM into version that can be used by wflow"""
         # Convert DEM and roughness CRS (default: 2193 --> 4326)
         self.dem_crs_conversion()
 

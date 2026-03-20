@@ -367,7 +367,7 @@ class StreamTopologyGenerator(CommonVariable):
 
         Parameters
         -----------
-        agg_upstream_area_and_strahler: gpd.DataFrame
+        agg_upstream_area_and_strahler: gpd.GeoDataFrame
             Geopandas dataframe that contains stream attributes "upstream_area_m2" and "strahler"
         """
         # Read D8 stream dataframe
