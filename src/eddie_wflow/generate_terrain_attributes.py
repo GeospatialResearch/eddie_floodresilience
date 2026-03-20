@@ -15,13 +15,14 @@ import geopandas as gpd
 import pandas as pd
 from rasterstats import zonal_stats
 
+# Create whitebox environment and whitebox tools
 wbe = WbEnvironment()
 wbe.verbose = True
 wbe.max_procs = -1
-
 wbt = WhiteboxTools()
 
-@dataclass # Means this is just a container for common variable
+
+@dataclass  # Means this is just a container for common variable
 class CommonVariable:
     """This class contains common variables for later classes in this module"""
 
