@@ -23,7 +23,7 @@ import geopandas as gpd
 import pandas as pd
 import requests
 from requests.structures import CaseInsensitiveDict
-from sqlalchemy.engine import Engine
+from sqlalchemy.engine import Connection
 
 from eddie.digitaltwin import tables
 
@@ -95,18 +95,18 @@ def get_rainfall_sites_in_df() -> gpd.GeoDataFrame:
     return sites_with_geometry
 
 
-def rainfall_sites_to_db(engine: Engine) -> None:
+def rainfall_sites_to_db(conn: Connection) -> None:
     """
     Store rainfall sites data from the HIRDS website in the database.
 
     Parameters
     ----------
-    engine : Engine
-        The engine used to connect to the database.
+    conn : Connection
+        The connection used to connect to the database.
     """
     table_name = "rainfall_sites"
     # Check if the table already exists in the database
-    if tables.check_table_exists(engine, table_name):
+    if tables.check_table_exists(conn, table_name):
         log.info(f"'{table_name}' data already exists in the database.")
     else:
         # Get rainfall sites data
@@ -114,4 +114,4 @@ def rainfall_sites_to_db(engine: Engine) -> None:
         sites = get_rainfall_sites_in_df()
         # Store rainfall sites data in the database
         log.info(f"Adding '{table_name}' data to the database.")
-        sites.to_postgis(f'{table_name}', engine, if_exists='replace', index=False)
+        sites.to_postgis(f'{table_name}', conn, if_exists='replace', index=False)

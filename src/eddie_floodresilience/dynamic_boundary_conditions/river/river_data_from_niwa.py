@@ -26,7 +26,7 @@ import geopandas as gpd
 import pandas as pd
 import requests
 from shapely.geometry import LineString
-from sqlalchemy.engine import Engine
+from sqlalchemy.engine import Connection
 from tqdm.asyncio import tqdm_asyncio
 
 from eddie.digitaltwin.utils import get_nz_boundary
@@ -91,7 +91,7 @@ def get_feature_layer_max_record_count(url: str = REC_API_URL) -> int:
 
 
 def gen_rec_query_param_list(
-    engine: Engine,
+    conn: Connection,
     max_record_count: int,
     feature_ids: list[int]
 ) -> List[Dict[str, Union[str, int]]]:
@@ -100,8 +100,8 @@ def gen_rec_query_param_list(
 
     Parameters
     ----------
-    engine : Engine
-        The engine used to connect to the database.
+    conn : Connection
+        The connection used to connect to the database.
     max_record_count : int
         The maximum number of records that will be returned per query.
     feature_ids : list[int]
@@ -113,7 +113,7 @@ def gen_rec_query_param_list(
         A list of API query parameters used to retrieve REC data in New Zealand.
     """
     # Get the New Zealand boundary geometry in the specified CRS
-    nz_boundary = get_nz_boundary(engine, to_crs=2193)
+    nz_boundary = get_nz_boundary(conn, to_crs=2193)
     # Extract the bounding box coordinates from the New Zealand boundary
     x_min, y_min, x_max, y_max = nz_boundary.total_bounds
     # Create a string representation of the bounding box coordinates for use in the API query
@@ -225,14 +225,14 @@ async def fetch_rec_data_for_nz(
     return rec_data
 
 
-def fetch_rec_data_from_niwa(engine: Engine, url: str = REC_API_URL) -> gpd.GeoDataFrame:
+def fetch_rec_data_from_niwa(conn: Connection, url: str = REC_API_URL) -> gpd.GeoDataFrame:
     """
     Retrieve REC data in New Zealand from NIWA using the ArcGIS REST API.
 
     Parameters
     ----------
-    engine : Engine
-        The engine used to connect to the database.
+    conn : Connection
+        The connection used to connect to the database.
     url : str = REC_API_URL
         The URL of the REC feature layer. Defaults to `REC_API_URL`.
 
@@ -254,7 +254,7 @@ def fetch_rec_data_from_niwa(engine: Engine, url: str = REC_API_URL) -> gpd.GeoD
     feature_ids = get_feature_layer_record_ids(url)
 
     # Generate a list of API query parameters used to retrieve REC data in New Zealand
-    query_param_list = gen_rec_query_param_list(engine, max_record_count, feature_ids)
+    query_param_list = gen_rec_query_param_list(conn, max_record_count, feature_ids)
     try:
         # Log that the fetching of REC data has started
         log.info("Fetching 'rec_data' from NIWA using the ArcGIS REST API.")
