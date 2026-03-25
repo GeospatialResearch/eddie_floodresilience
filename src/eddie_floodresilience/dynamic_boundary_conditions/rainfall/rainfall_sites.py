@@ -69,6 +69,7 @@ def get_rainfall_sites_data() -> str:
     headers = get_hirds_headers()
     # Send HTTP GET request to the specified URL with headers
     response = requests.get(url, headers=headers)
+    response.raise_for_status()
     # Return the response content as a text string
     sites_data = response.text
     return sites_data
