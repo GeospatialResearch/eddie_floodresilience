@@ -7,6 +7,7 @@ from pathlib import Path
 from dataclasses import dataclass
 from whitebox_workflows import WbEnvironment, Raster
 from whitebox.whitebox_tools import WhiteboxTools
+from osgeo import gdal # Import gdal before rasterio
 import xarray as xr
 import rioxarray as rxr
 import numpy as np
@@ -172,7 +173,7 @@ class TerrainAttributesGenerator():
 
             # Extract streams from the flow accumulation
             wbt.extract_streams(
-                flow_accum=str(input_path),
+                flow_accum=str(flow_path_acc_cells),
                 output=str(streams_path),
                 threshold=threshold
             )
@@ -484,11 +485,11 @@ class StreamHydraulicsGenerator():
 
         # Read D8 pointer
         d8_pointer_path = self.path / "d8_pointer.tif"
-        d8_pointer = wbe.read_raster(fr"{self.path}\d8_pointer.tif")
+        d8_pointer = wbe.read_raster(str(d8_pointer_path))
 
         # Extract watershed for specific points of outlet and gauges
         outlet_gauge_points_path = self.path / f"{self.outlet_gauge_locations_file}.shp"
-        outlet_gauge_points = wbe.read_vector(outlet_gauge_points_path)
+        outlet_gauge_points = wbe.read_vector(str(outlet_gauge_points_path))
 
         # Ensure the watershed or streamlines that have points of outlet and gauges
         outlet_gauge_points_on_streams = wbe.jenson_snap_pour_points(
@@ -569,7 +570,7 @@ class StreamHydraulicsGenerator():
         stream_path_watershed = self.path / "streams_watershed.tif"
         wbe.write_raster(
             streams_watershed,
-            stream_path_watershed,
+            str(stream_path_watershed),
             compress=False
         )
 
@@ -809,8 +810,13 @@ class StreamHydraulicsGenerator():
             1
         )
 
+        # Read file that contains streams' information within watershed
+        streams_watershed_vector_more_info = self.read_streams_watershed_more_info()
+
         # Buffer stream linestring to capture stream pixels
-        streams_watershed_vector_more_info, streams_watershed_buffer = self.buffer_streams_watershed()
+        streams_watershed_buffer = self.buffer_streams_watershed(
+            streams_watershed_vector_more_info
+        )
 
         # Assign stream bankfull width to stream linestring
         self.assign_streams_hydraulic_values(
@@ -823,7 +829,7 @@ class StreamHydraulicsGenerator():
         """Generate streams' slopes"""
         # Read DEM that its depressions are filled
         dem_no_deps_path = self.path / "dem_for_wflow_coarser_nodeps_crs.tif"
-        dem_no_deps = wbe.read_raster(dem_no_deps_path)
+        dem_no_deps = wbe.read_raster(str(dem_no_deps_path))
 
         # Generate slope from DEM
         slope = wbe.slope(
