@@ -177,9 +177,8 @@ def get_rec_inflows_with_input_points(
     rec_inflows["dem_boundary_line_buffered"] = rec_inflows["dem_boundary_line"].buffer(distance=res_no, cap_style=2)
     # Add the Hydro DEM resolution information
     rec_inflows["dem_resolution"] = res_no
-    # Create an empty GeoDataFrame to store REC inflows input
-    rec_inflows_w_input_points = gpd.GeoDataFrame()
     # Iterate through each row in the 'rec_inflows' GeoDataFrame
+    rows_to_add = []
     for _, row in rec_inflows.iterrows():
         # Locate the river input point used for BG-Flood model river input from the Hydro DEM
         river_input_point = get_min_elevation_river_input_point(row, hydro_dem)
@@ -187,11 +186,10 @@ def get_rec_inflows_with_input_points(
         row['dem_elevation'] = river_input_point['dem_elevation'][0]
         # Assign the river input point geometry to the 'river_input_point' column in the current 'row'
         row['river_input_point'] = river_input_point['river_input_point'][0]
-        # Append the updated 'row' to the 'rec_inflows_w_input_points' GeoDataFrame
-        rec_inflows_w_input_points = rec_inflows_w_input_points.append(row, ignore_index=True)
-    # Set 'river_input_point' as the geometry column and maintain the same CRS
-    rec_inflows_w_input_points = gpd.GeoDataFrame(
-        rec_inflows_w_input_points, geometry="river_input_point", crs=rec_inflows.crs)
+        # Append the updated 'row' to the list used to create the 'rec_inflows_w_input_points' GeoDataFrame
+        rows_to_add.append(row)
+    # Create an GeoDataFrame from the list to store REC inflows input
+    rec_inflows_w_input_points = gpd.GeoDataFrame(rows_to_add, geometry="river_input_point", crs=rec_inflows.crs)
     # Reset the index to ensure a clean sequential order
     rec_inflows_w_input_points = rec_inflows_w_input_points.reset_index(drop=True)
     return rec_inflows_w_input_points

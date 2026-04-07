@@ -32,14 +32,10 @@ import geopandas as gpd
 import networkx as nx
 import numpy as np
 import shapely.wkt
-from sqlalchemy import func, select
+from sqlalchemy import insert, text
 from sqlalchemy.engine import Connection
-from sqlalchemy.sql import text
 
-from eddie.digitaltwin.tables import (
-    check_table_exists,
-    create_table,
-)
+from eddie.digitaltwin.tables import check_table_exists, create_table
 from src.eddie_floodresilience.config import EnvVariable
 from src.eddie_floodresilience.tables import RiverNetwork, RiverNetworkExclusions
 
@@ -64,7 +60,7 @@ def get_next_network_id(conn: Connection) -> int:
     if not check_table_exists(conn, RiverNetworkExclusions.__tablename__):
         create_table(conn, RiverNetworkExclusions)
     # Build a query to find the next available river network ID
-    query = select([func.coalesce(func.max(RiverNetworkExclusions.rec_network_id), 0) + 1])
+    query = text("SELECT COALESCE(MAX(rec_network_id), 0) + 1 from rec_network")
     # Execute the query
     rec_network_id = conn.execute(query).scalar()
     return rec_network_id
@@ -208,7 +204,7 @@ def store_rec_network_to_db(
     network_path, network_data_path, geometry = get_network_output_metadata(
         network_path, network_data_path, catchment_area)
     # Create a new query object representing the REC Network metadata
-    query = RiverNetwork(
+    query = insert(RiverNetwork).values(
         rec_network_id=rec_network_id,
         network_path=network_path,
         network_data_path=network_data_path,

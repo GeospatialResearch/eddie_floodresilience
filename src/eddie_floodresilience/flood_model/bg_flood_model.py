@@ -187,7 +187,7 @@ def model_output_from_db_by_id(conn: Connection, model_id: int) -> pathlib.Path:
     bg_flood_table = "bg_flood_model_output"
     if not check_table_exists(conn, bg_flood_table):
         raise FileNotFoundError(f"{bg_flood_table} table does not exist")
-    row = conn.execute(query).fetchone()
+    row = conn.execute(query).mappings().fetchone()
     # If the row is empty then we could not find the model output
     if row is None:
         raise FileNotFoundError(f"bg_flood_model_output table does not contain row with unique_id: {model_id}")
