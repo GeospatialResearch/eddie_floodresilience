@@ -31,14 +31,13 @@ dependencies:
   - gdal==3.7.0
   - geoalchemy2==0.18.4
   - geoapis==0.3.2
-  - geocube==0.5.3 # todo flag for potential removal
+  - geocube==0.5.3
   - geopandas==0.14.4
   - gevent==25.9.1
   - libgdal==3.7.0
   - lxml==4.9.3
   - pandas==2.3.3
   - pip==26.0.1
-  - plotly==6.6.0 # todo remove
   - psycopg2==2.9.7
   - pyarrow==14.0.1
   - pygeos==0.14
@@ -52,7 +51,7 @@ dependencies:
   - twisted==22.10.0
   - sqlalchemy==2.0.48
   - pip:
-      - geovoronoi==0.4.0 #todo set version; flag for potential removal
+      - geovoronoi==0.4.0
       - gunicorn==25.1.0
       - git+https://github.com/LukeParky/NewZeaLiDAR.git@update_sqlalchemy
       - git+https://github.com/GeospatialResearch/OWSLib.git
