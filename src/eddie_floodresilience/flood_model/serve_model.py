@@ -25,6 +25,7 @@ import os
 import pathlib
 from xml.sax import saxutils
 
+from sqlalchemy.engine import Connection
 import xarray as xr
 
 from eddie import geoserver
@@ -60,7 +61,7 @@ def convert_nc_to_gtiff(nc_file_path: pathlib.Path) -> pathlib.Path:
     return pathlib.Path(os.getcwd()) / gtiff_filepath
 
 
-def create_building_layers(workspace_name: str, data_store_name: str) -> None:
+def create_building_layers(conn: Connection, workspace_name: str, data_store_name: str) -> None:
     """
     Create dynamic GeoServer layers "nz_building_outlines" and "building_flood_status" for the given workspace.
     If they already exist then do nothing.
@@ -68,10 +69,12 @@ def create_building_layers(workspace_name: str, data_store_name: str) -> None:
 
     Parameters
     ----------
+    conn : Connection
+        The connection used to connect to the database.
     workspace_name : str
         The name of the workspace to create views for.
     data_store_name : str
-         The name of the datastore that the building layer is being created from.
+        The name of the datastore that the building layer is being created from.
 
     Raises
     ----------
@@ -79,7 +82,7 @@ def create_building_layers(workspace_name: str, data_store_name: str) -> None:
         If geoserver responds with an error, raises it as an exception since it is unexpected.
     """
     # Simple layer that is just displaying the nz_building_outlines database table
-    geoserver.create_datastore_layer(workspace_name, data_store_name, layer_name="nz_building_outlines")
+    geoserver.create_datastore_layer(conn, workspace_name, data_store_name, layer_name="nz_building_outlines")
 
     # More complex layer that has to do dynamic sql queries against model output ID to fetch
     flood_status_layer_name = "building_flood_status"
@@ -116,10 +119,13 @@ def create_building_layers(workspace_name: str, data_store_name: str) -> None:
         </entry>
       </metadata>
     """
-    geoserver.create_datastore_layer(workspace_name,
-                                     data_store_name,
-                                     layer_name="building_flood_status",
-                                     metadata_elem=flood_status_xml_query)
+    geoserver.create_datastore_layer(
+        conn,
+        workspace_name,
+        data_store_name,
+        layer_name="building_flood_status",
+        metadata_elem=flood_status_xml_query
+    )
 
 
 def create_viridis_style_if_not_exists() -> None:
@@ -128,10 +134,15 @@ def create_viridis_style_if_not_exists() -> None:
     geoserver.add_style(viridis_sld_path, replace=True)
 
 
-def create_building_database_views_if_not_exists() -> None:
+def create_building_database_views_if_not_exists(conn: Connection) -> None:
     """
     Create a GeoServer workspace and building layers using database views if they do not currently exist.
     These only need to be created once per database.
+
+    Parameters
+    ----------
+    conn : Connection
+        The connection used to connect to the database.
     """
     log.debug("Creating building database views if they do not exist")
     db_name = EnvVariable.POSTGRES_DB
@@ -139,7 +150,7 @@ def create_building_database_views_if_not_exists() -> None:
     # Create workspace if it doesn't exist, so that the namespaces can be separated if multiple dbs are running
     data_store_name = geoserver.create_main_db_store(workspace_name)
     # Create SQL view layers so geoserver can dynamically serve building layers based on model outputs.
-    create_building_layers(workspace_name, data_store_name)
+    create_building_layers(conn, workspace_name, data_store_name)
 
 
 def add_model_output_to_geoserver(model_output_path: pathlib.Path, model_id: int) -> None:
