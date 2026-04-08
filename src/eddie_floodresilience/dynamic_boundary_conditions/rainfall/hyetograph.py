@@ -62,7 +62,8 @@ def get_transposed_data(rain_depth_in_catchment: pd.DataFrame) -> pd.DataFrame:
 def get_interpolated_data(
     transposed_catchment_data: pd.DataFrame,
     increment_mins: int,
-    interp_method: str) -> pd.DataFrame:
+    interp_method: str
+) -> pd.DataFrame:
     """
     Perform temporal interpolation on the transposed scenario data to the desired time interval
     for sites within the catchment area.
@@ -186,7 +187,8 @@ def add_time_information(
     storm_length_mins: int,
     time_to_peak_mins: Union[int, float],
     increment_mins: int,
-    hyeto_method: HyetoMethod) -> pd.DataFrame:
+    hyeto_method: HyetoMethod
+) -> pd.DataFrame:
     """
     Add time information (seconds, minutes, and hours column) to the hyetograph data based on the
     selected hyetograph method.
@@ -263,7 +265,8 @@ def transform_data_for_selected_method(
     storm_length_mins: int,
     time_to_peak_mins: Union[int, float],
     increment_mins: int,
-    hyeto_method: HyetoMethod) -> pd.DataFrame:
+    hyeto_method: HyetoMethod
+) -> pd.DataFrame:
     """
     Transform the storm length incremental rainfall depths for sites within the catchment area based on
     the selected hyetograph method and return hyetograph depths data for all sites within the catchment area
@@ -322,7 +325,8 @@ def transform_data_for_selected_method(
 def hyetograph_depth_to_intensity(
     hyetograph_depth: pd.DataFrame,
     increment_mins: int,
-    hyeto_method: HyetoMethod) -> pd.DataFrame:
+    hyeto_method: HyetoMethod
+) -> pd.DataFrame:
     """
     Convert hyetograph depths data to hyetograph intensities data for all sites within the catchment area.
 
@@ -359,7 +363,8 @@ def get_hyetograph_data(
     time_to_peak_mins: Union[int, float],
     increment_mins: int,
     interp_method: str,
-    hyeto_method: HyetoMethod) -> pd.DataFrame:
+    hyeto_method: HyetoMethod
+) -> pd.DataFrame:
     """
     Get hyetograph intensities data for all sites within the catchment area and return it in Pandas DataFrame format.
 
