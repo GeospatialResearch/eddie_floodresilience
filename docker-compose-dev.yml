@@ -40,8 +40,10 @@ services:
   terria_map:
     volumes:
     # Allows development config to be updated on refresh, instead of rebuild
-    - ./terriajs/client_config.json:/app/wwwroot/config.json
-    - ./terriajs/catalog.json:/app/wwwroot/init/catalog.json
+    - ./lib/eddie/terriajs/client_config.json:/app/wwwroot/config.json
+    - ./lib/eddie/terriajs/catalog.json:/app/wwwroot/init/catalog.json
+    - ./lib/eddie/terriajs/server_config.json:/app/serverconfig.json
+
 
   geoserver:
     volumes:
