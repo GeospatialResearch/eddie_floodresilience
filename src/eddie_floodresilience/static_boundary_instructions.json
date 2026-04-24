@@ -40,5 +40,12 @@
     "table_name": "nz_building_outlines",
     "unique_column_name": "building_outline_id",
     "url": "https://data.linz.govt.nz/layer/101292-nz-building-outlines-all-sources/"
+  },
+  "instruction_7": {
+    "data_provider": "LINZ",
+    "layer_id": 50804,
+    "table_name": "nz_property_titles",
+    "unique_column_name": "id",
+    "url": "https://data.linz.govt.nz/layer/50804-nz-property-titles/"
   }
 }
