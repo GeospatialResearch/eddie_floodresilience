@@ -101,7 +101,16 @@ def terria_catalog() -> Response:
     Response
         The HTTP Response. Expect OK if health check is successful
     """
-    catalog = get_terria_catalog()
+    catalog_group = get_terria_catalog()["catalog"]
+    catalog = {
+        "catalog": [
+            {
+                "type": "group",
+                "name": "Intermediate Modelling Layers",
+                "members": catalog_group
+            }
+        ]
+    }
     return make_response(jsonify(catalog), OK)
 
 
