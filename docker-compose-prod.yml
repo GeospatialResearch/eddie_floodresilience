@@ -44,7 +44,7 @@ services:
       context: .
       dockerfile: docker/eddie.Dockerfile
     container_name: backend_digital_twin
-    entrypoint: ["src/backend_entrypoint.sh"]
+    entrypoint: [ "src/backend_entrypoint.sh" ]
     env_file:
       - .env
       - api_keys.env
@@ -74,7 +74,7 @@ services:
       context: .
       dockerfile: docker/eddie.Dockerfile
     container_name: celery_worker_digital_twin
-    entrypoint: ["src/celery_worker_entrypoint.sh"]
+    entrypoint: [ "src/celery_worker_entrypoint.sh" ]
     restart: always
     env_file:
       - .env
@@ -95,13 +95,6 @@ services:
       - db_postgres
       - message_broker
       - geoserver
-    deploy:
-      resources:
-        reservations:
-          devices:
-          - driver: nvidia
-            count: all # Use all available GPUs
-            capabilities: [ gpu ]
 
   geoserver:
     # Serves geospatial web data through interactions with files and database
