@@ -34,7 +34,7 @@ from eddie.tasks import OnFailureStateTask, add_base_data_to_db, app, wkt_to_gdf
 from src.eddie_floodresilience.dynamic_boundary_conditions.rainfall import main_rainfall
 from src.eddie_floodresilience.dynamic_boundary_conditions.river import main_river
 from src.eddie_floodresilience.dynamic_boundary_conditions.tide import main_tide_slr
-from src.eddie_floodresilience.flood_model import bg_flood_model, process_hydro_dem
+from src.eddie_floodresilience.flood_model import bg_flood_model, process_hydro_dem, serve_model
 from src.eddie_floodresilience.run_all import DEFAULT_MODULES_TO_PARAMETERS
 
 setup_logging()
@@ -75,6 +75,10 @@ def on_startup(sender: Consumer, **_kwargs: None) -> None:  # pylint: disable=mi
         # Send a task to initialise this area of interest.
         base_data_parameters = DEFAULT_MODULES_TO_PARAMETERS[retrieve_from_instructions]
         sender.app.send_task("eddie.tasks.add_base_data_to_db", args=[aoi_wkt, base_data_parameters], connection=conn)
+        # Process building flood status from static files
+        # todo this is only for demo purposes and is not intended as a long term solution
+        sender.app.send_task(
+            "src.eddie_floodresilience.tasks.process_building_flood_status_from_static", connection=conn)
         # Send a task to ensure lidar datasets are evaluated.
         # sender.app.send_task("src.eddie_floodresilience.tasks.ensure_lidar_datasets_initialised")
 
@@ -104,6 +108,12 @@ def create_model_for_area(selected_polygon_wkt: str, scenario_options: dict) -> 
         run_flood_model.si(selected_polygon_wkt) |
         cache_results.s(selected_polygon_wkt, scenario_options)
     )()
+
+
+@app.task(base=OnFailureStateTask)
+def process_building_flood_status_from_static() -> None:
+    # todo this is temp, static files should be handled in more robust ways.
+    serve_model.main()
 
 
 @app.task(base=OnFailureStateTask)

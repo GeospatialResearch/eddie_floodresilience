@@ -176,3 +176,28 @@ def add_model_output_to_geoserver(model_output_path: pathlib.Path, model_id: int
     # We can remove the temporary raster
     gtiff_filepath.unlink()
     create_viridis_style_if_not_exists()
+
+
+def main():
+    from eddie.digitaltwin import setup_environment
+    import geopandas as gpd
+    from src.eddie_floodresilience.flood_model.flooded_buildings import find_flooded_buildings, store_flooded_buildings_in_database
+    from eddie.digitaltwin.utils import setup_logging
+    setup_logging()
+
+    catchment_area = gpd.GeoDataFrame.from_file("selected_polygon.geojson")
+    engine = setup_environment.get_database()
+    with engine.connect() as conn:
+        for i, scenario in enumerate(("origin", "forest", "pasture")):
+
+            model_output_path = pathlib.Path(f"src/static/geo/flood_max_depth_{scenario}_3857.tif")
+            # Find buildings that are flooded to a depth greater than or equal to 0.1m
+            log.info(f"Analysing flooded buildings {i}")
+            flooded_buildings = find_flooded_buildings(conn, catchment_area, model_output_path, flood_depth_threshold=0.03)
+            log.info("Analysed flooded buildings - adding flooded buildings to database")
+            model_id = -(i + 1)
+            store_flooded_buildings_in_database(conn, flooded_buildings, model_id)
+
+
+if __name__ == '__main__':
+    main()
