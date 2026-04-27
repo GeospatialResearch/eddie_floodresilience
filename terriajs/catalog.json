@@ -18,6 +18,7 @@
       "name": "Pātaka Whenua - Māori Land Court Online Blocks",
       "url": "https://api.service.maorilandcourt.govt.nz/geoserver/wms",
       "layers": "mlgis:mv_block_summary_view",
+      "styles": "polygon",
       "isOpenInWorkbench": true,
       "rectangle": {
         "west": 173.4,
