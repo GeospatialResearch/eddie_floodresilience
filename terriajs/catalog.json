@@ -27,6 +27,94 @@
       }
     },
     {
+      "type": "wfs",
+      "id": "marae",
+      "name": "Whirinaki Marae Locations",
+      "url": "$GEOSERVER_URL/geoserver/static_files/ows",
+      "typeNames": "static_files:marae_locations",
+      "activeStyle": "Marae Names",
+      "styles": [
+        {
+          "id": "Marae Names",
+          "color": {
+            "nullColor": "indianred"
+          },
+          "point": {
+            "enabled": true,
+            "null": {
+              "marker": "point",
+              "height": 16,
+              "width": 16
+            }
+          },
+          "label": {
+            "enabled": true,
+            "mapType": "constant",
+            "column": "name",
+            "null": {
+              "labelColumn": "name",
+              "font": "25px sans-serif",
+              "style": "FILL_AND_OUTLINE",
+              "outlineWidth": 2,
+              "pixelOffset": [
+                15,
+                -10
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "type": "wfs",
+      "id": "water_pipes",
+      "name": "Whirinaki Water Pipes",
+      "url": "$GEOSERVER_URL/geoserver/static_files/ows",
+      "typeNames": "static_files:Whirinaki_Water_Pipes",
+      "activeStyle": "Water Pipes",
+      "styles": [
+        {
+          "id": "Water Pipes",
+          "color": {
+            "colorColumn": "",
+            "nullColor": "aqua"
+          },
+          "point": {
+            "null": {
+              "height": 16
+            }
+          },
+          "outline": {
+            "null": {
+              "width": 2
+            }
+          },
+          "hidden": false
+        }
+      ]
+    },
+    {
+      "type": "wfs",
+      "name": "Road Centrelines",
+      "id": "road_centrelines",
+      "url": "$GEOSERVER_URL/geoserver/input_layers/ows",
+      "typeNames": "input_layers:nz_roads",
+      "activeStyle": "Roads",
+      "styles": [
+        {
+          "id": "Roads",
+          "color": {
+            "nullColor": "black"
+          },
+          "outline": {
+            "null": {
+              "width": 4
+            }
+          }
+        }
+      ]
+    },
+    {
       "type": "group",
       "name": "March 2026 Flood Survey - Northland Regional Council",
       "isOpen": true,
@@ -37,6 +125,7 @@
           "url": "$GEOSERVER_URL/geoserver/static_files/ows",
           "typeNames": "static_files:2026_flood_survey_heights",
           "maxFeatures": 300000,
+          "activeStyle": "depth",
           "styles": [
             {
               "id": "depth",
