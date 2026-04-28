@@ -131,17 +131,23 @@
             {
               "id": "depth",
               "color": {
-                "mapType": "continuous",
-                "maximumValue": 3,
+                "mapType": "bin",
                 "numberOfBins": 5,
                 "binMaximums": [
-                  0.6,
-                  1.2,
-                  1.8,
-                  2.4,
-                  3
+                  0.1,
+                  0.3,
+                  0.8,
+                  1.6,
+                  3.0
                 ],
-                "colorPalette": "Plasma"
+                "binColors": [
+                  "#0d0887",
+                  "#6b00a8",
+                  "#b02a90",
+                  "#e06462",
+                  "#fca736",
+                  "#f0f921"
+                ]
               },
               "point": {
                 "null": {

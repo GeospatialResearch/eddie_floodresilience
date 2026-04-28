@@ -152,7 +152,4 @@ services:
       retries: 10
 
     restart: always
-networks:
-  default:
-    name: webproxy
-    external: true
+
