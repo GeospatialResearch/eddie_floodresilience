@@ -1,98 +1,26 @@
 {
   "homeCamera": {
-    "west": 173.39,
-    "south": -35.50,
-    "east": 173.52,
-    "north": -35.45
+    "west": 172.3,
+    "south": -43.87,
+    "east": 172.4,
+    "north": -43.83
   },
   "catalog": [
     {
-      "type": "wps",
-      "name": "Model a land cover change flood scenario",
-      "description": "Model a land cover change scenario that will impact the flood scenario",
-      "url": "$BACKEND_URL/wps",
-      "identifier": "fredt"
-    },
-    {
-      "type": "wms",
-      "name": "Pātaka Whenua - Māori Land Court Online Blocks",
-      "url": "https://api.service.maorilandcourt.govt.nz/geoserver/wms",
-      "layers": "mlgis:mv_block_summary_view",
-      "styles": "polygon",
-      "isOpenInWorkbench": true,
-      "rectangle": {
-        "west": 173.4,
-        "north": -35.4,
-        "east": 173.6,
-        "south": -35.6
+      "type": "wfs",
+      "name": "3D Buildings",
+      "url": "$GEOSERVER_URL/geoserver/db-buildings/ows",
+      "typeNames": "db-buildings:building_flood_status",
+      "parameters": {
+        "viewparams": "scenario:-2"
+      },
+      "maxFeatures": 300000,
+      "heightProperty": "extruded_height",
+      "style": {
+        "stroke-width": 0,
+        "stroke": "orange",
+        "fill": "orange"
       }
-    },
-    {
-      "type": "wfs",
-      "id": "marae",
-      "name": "Whirinaki Marae Locations",
-      "url": "$GEOSERVER_URL/geoserver/static_files/ows",
-      "typeNames": "static_files:marae_locations",
-      "activeStyle": "Marae Names",
-      "styles": [
-        {
-          "id": "Marae Names",
-          "color": {
-            "nullColor": "indianred"
-          },
-          "point": {
-            "enabled": true,
-            "null": {
-              "marker": "point",
-              "height": 16,
-              "width": 16
-            }
-          },
-          "label": {
-            "enabled": true,
-            "mapType": "constant",
-            "column": "name",
-            "null": {
-              "labelColumn": "name",
-              "font": "25px sans-serif",
-              "style": "FILL_AND_OUTLINE",
-              "outlineWidth": 2,
-              "pixelOffset": [
-                15,
-                -10
-              ]
-            }
-          }
-        }
-      ]
-    },
-    {
-      "type": "wfs",
-      "id": "water_pipes",
-      "name": "Whirinaki Water Pipes",
-      "url": "$GEOSERVER_URL/geoserver/static_files/ows",
-      "typeNames": "static_files:Whirinaki_Water_Pipes",
-      "activeStyle": "Water Pipes",
-      "styles": [
-        {
-          "id": "Water Pipes",
-          "color": {
-            "colorColumn": "",
-            "nullColor": "aqua"
-          },
-          "point": {
-            "null": {
-              "height": 16
-            }
-          },
-          "outline": {
-            "null": {
-              "width": 2
-            }
-          },
-          "hidden": false
-        }
-      ]
     },
     {
       "type": "wfs",
@@ -116,89 +44,60 @@
       ]
     },
     {
-      "type": "group",
-      "name": "March 2026 Flood Survey - Northland Regional Council",
-      "isOpen": true,
-      "members": [
+      "type": "wfs",
+      "id": "marae",
+      "name": "Potential Marae Locations",
+      "url": "$GEOSERVER_URL/geoserver/static_files/ows",
+      "typeNames": "static_files:points_of_interest",
+      "activeStyle": "Potential Marae Locations",
+      "styles": [
         {
-          "type": "wfs",
-          "name": "Flood Survey Points",
-          "url": "$GEOSERVER_URL/geoserver/static_files/ows",
-          "typeNames": "static_files:2026_flood_survey_heights",
-          "maxFeatures": 300000,
-          "activeStyle": "depth",
-          "styles": [
-            {
-              "id": "depth",
-              "color": {
-                "mapType": "bin",
-                "numberOfBins": 5,
-                "binMaximums": [
-                  0.1,
-                  0.3,
-                  0.8,
-                  1.6,
-                  3.0
-                ],
-                "binColors": [
-                  "#0d0887",
-                  "#6b00a8",
-                  "#b02a90",
-                  "#e06462",
-                  "#fca736",
-                  "#f0f921"
-                ]
-              },
-              "point": {
-                "null": {
-                  "marker": "square",
-                  "rotation": 45
-                }
-              },
-              "pointSize": {
-                "nullSize": 25,
-                "sizeFactor": 0,
-                "sizeOffset": 30
-              }
+          "id": "Potential Marae Locations",
+          "color": {
+            "nullColor": "indianred"
+          },
+          "point": {
+            "enabled": true,
+            "null": {
+              "marker": "point",
+              "height": 16,
+              "width": 16
             }
-          ]
-        },
-        {
-          "type": "wms",
-          "name": "Interpolated Flood Depth",
-          "url": "$GEOSERVER_URL/geoserver/static_files/wms",
-          "layers": "2026_march_interpolated_depth",
-          "styles": "plasma_0_3m",
-          "opacity": 0.66,
-          "isOpenInWorkbench": true
+          },
+          "label": {
+            "enabled": true,
+            "mapType": "constant",
+            "column": "Site Name",
+            "null": {
+              "labelColumn": "Site Name",
+              "font": "25px sans-serif",
+              "style": "FILL_AND_OUTLINE",
+              "outlineWidth": 2,
+              "pixelOffset": [
+                15,
+                -10
+              ]
+            }
+          }
         }
       ]
     },
     {
       "type": "group",
-      "name": "Current Scenario",
+      "name": "1% AEP 48h 0°C",
       "isOpen": true,
       "members": [
         {
           "type": "wms",
-          "name": "Current Scenario Land Cover",
+          "name": "1% AEP 48h 0°C Inundation ≥ 10cm",
           "url": "$GEOSERVER_URL/geoserver/static_files/wms",
-          "layers": "valley_landuse_present_day",
-          "styles": "landcover",
-          "opacity": 0.66,
-          "isOpenInWorkbench": true
-        },
-        {
-          "type": "wms",
-          "name": "1999 Flood Event - Current Scenario",
-          "url": "$GEOSERVER_URL/geoserver/static_files/wms",
-          "layers": "flood_max_depth_origin_3857",
+          "layers": "100y_0c_thresholded_0-1_3857_32b",
           "styles": "plasma_0_3m",
           "isOpenInWorkbench": true
         },
         {
           "type": "wfs",
-          "name": "Building Flood Status - Current Scenario",
+          "name": "Building Flood Status - 1% AEP 48h 0°C",
           "url": "$GEOSERVER_URL/geoserver/db-buildings/ows",
           "typeNames": "db-buildings:building_flood_status",
           "parameters": {
@@ -249,37 +148,20 @@
     },
     {
       "type": "group",
-      "name": "Reforestation Scenario",
+      "name": "1% AEP 48h 3°C",
       "isOpen": true,
       "members": [
         {
           "type": "wms",
-          "name": "Reforestation Scenario Land Cover",
+          "name": "1% AEP 48h 3°C Inundation ≥ 10cm",
           "url": "$GEOSERVER_URL/geoserver/static_files/wms",
-          "layers": "valley_landuse_forest",
-          "styles": "landcover",
-          "opacity": 0.66,
-          "isOpenInWorkbench": true
-        },
-        {
-          "type": "wms",
-          "name": "1999 Flood Event - Reforestation Scenario",
-          "url": "$GEOSERVER_URL/geoserver/static_files/wms",
-          "layers": "flood_max_depth_forest_3857",
+          "layers": "100y_3c_thresholded_0-1_3857_32b",
           "styles": "plasma_0_3m",
           "isOpenInWorkbench": true
         },
         {
-          "type": "wms",
-          "name": "1999 Flood Event - Difference - Reforestation Scenario",
-          "url": "$GEOSERVER_URL/geoserver/static_files/wms",
-          "layers": "forest_difference_clipped",
-          "styles": "difference_r_b_0_2",
-          "isOpenInWorkbench": true
-        },
-        {
           "type": "wfs",
-          "name": "Building Flood Status - Reforestation Scenario",
+          "name": "Building Flood Status - 1% AEP 48h 3°C",
           "url": "$GEOSERVER_URL/geoserver/db-buildings/ows",
           "typeNames": "db-buildings:building_flood_status",
           "parameters": {
@@ -329,85 +211,12 @@
       ]
     },
     {
-      "type": "group",
-      "name": "All Pasture Scenario",
-      "isOpen": true,
-      "members": [
-        {
-          "type": "wms",
-          "name": "All Pasture Scenario Land Cover",
-          "url": "$GEOSERVER_URL/geoserver/static_files/wms",
-          "layers": "valley_landuse_pasture",
-          "styles": "landcover",
-          "opacity": 0.66,
-          "isOpenInWorkbench": true
-        },
-        {
-          "type": "wms",
-          "name": "1999 Flood Event - All Pasture Scenario",
-          "url": "$GEOSERVER_URL/geoserver/static_files/wms",
-          "layers": "flood_max_depth_pasture_3857",
-          "styles": "plasma_0_3m",
-          "isOpenInWorkbench": true
-        },
-        {
-          "type": "wms",
-          "name": "1999 Flood Event - Difference - Pasture Scenario",
-          "url": "$GEOSERVER_URL/geoserver/static_files/wms",
-          "layers": "pasture_difference_clipped",
-          "styles": "difference_r_b_0_2",
-          "isOpenInWorkbench": true
-        },
-        {
-          "type": "wfs",
-          "name": "Building Flood Status - Pasture Scenario",
-          "url": "$GEOSERVER_URL/geoserver/db-buildings/ows",
-          "typeNames": "db-buildings:building_flood_status",
-          "parameters": {
-            "viewparams": "scenario:-3"
-          },
-          "maxFeatures": 300000,
-          "styles": [
-            {
-              "id": "is_flooded",
-              "title": "Building Flood Status",
-              "color": {
-                "mapType": "enum",
-                "colorColumn": "is_flooded_int",
-                "legend": {
-                  "title": "Building Flood Status",
-                  "items": [
-                    {
-                      "title": "Non-Flooded",
-                      "color": "darkgreen"
-                    },
-                    {
-                      "title": "Flooded",
-                      "color": "darkred"
-                    }
-                  ]
-                },
-                "enumColors": [
-                  {
-                    "value": "0",
-                    "color": "darkgreen"
-                  },
-                  {
-                    "value": "1",
-                    "color": "darkred"
-                  }
-                ]
-              },
-              "outline": {
-                "null": {
-                  "width": 0
-                }
-              }
-            }
-          ],
-          "activeStyle": "is_flooded"
-        }
-      ]
+      "type": "wms",
+      "name": "1% AEP 48h 3°C vs 0°C Difference",
+      "url": "$GEOSERVER_URL/geoserver/static_files/wms",
+      "layers": "100y_3c_diff_0c",
+      "styles": "difference_r_b_0_2",
+      "isOpenInWorkbench": true
     }
   ],
   "baseMaps": {

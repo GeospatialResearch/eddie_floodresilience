@@ -88,7 +88,8 @@ def create_building_layers(conn: Connection, workspace_name: str, data_store_nam
     flood_status_layer_name = "building_flood_status"
     flooded_buildings_sql_query = """
         SELECT *,
-               is_flooded::int AS is_flooded_int
+               is_flooded::int AS is_flooded_int,
+               4.5             AS extruded_height
         FROM nz_building_outlines
                  LEFT OUTER JOIN building_flood_status USING (building_outline_id)
         WHERE building_outline_lifecycle ILIKE 'current'
@@ -188,9 +189,9 @@ def main():
     catchment_area = gpd.GeoDataFrame.from_file("selected_polygon.geojson")
     engine = setup_environment.get_database()
     with engine.connect() as conn:
-        for i, scenario in enumerate(("origin", "forest", "pasture")):
+        for i, scenario in enumerate((0, 3)):
 
-            model_output_path = pathlib.Path(f"src/static/geo/flood_max_depth_{scenario}_3857.tif")
+            model_output_path = pathlib.Path(f"src/static/geo/100y_{scenario}c_thresholded_0-1_3857_32b.tif")
             # Find buildings that are flooded to a depth greater than or equal to 0.1m
             log.info(f"Analysing flooded buildings {i}")
             flooded_buildings = find_flooded_buildings(conn, catchment_area, model_output_path, flood_depth_threshold=0.03)
