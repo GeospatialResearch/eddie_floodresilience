@@ -96,6 +96,14 @@
           "isOpenInWorkbench": true
         },
         {
+          "type": "wms",
+          "name": "1% AEP 48h 0°C ≥ 10cm Extents",
+          "url": "$GEOSERVER_URL/geoserver/static_files/wms",
+          "layers": "100y_0c_thresholded_0-1_3857_32b",
+          "styles": "light_blue",
+          "isOpenInWorkbench": true
+        },
+        {
           "type": "wfs",
           "name": "Building Flood Status - 1% AEP 48h 0°C",
           "url": "$GEOSERVER_URL/geoserver/db-buildings/ows",
@@ -157,6 +165,14 @@
           "url": "$GEOSERVER_URL/geoserver/static_files/wms",
           "layers": "100y_3c_thresholded_0-1_3857_32b",
           "styles": "plasma_0_3m",
+          "isOpenInWorkbench": true
+        },
+        {
+          "type": "wms",
+          "name": "1% AEP 48h 3°C ≥ 10cm Extents",
+          "url": "$GEOSERVER_URL/geoserver/static_files/wms",
+          "layers": "100y_3c_thresholded_0-1_3857_32b",
+          "styles": "dark_blue",
           "isOpenInWorkbench": true
         },
         {

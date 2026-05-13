@@ -17,7 +17,7 @@ http://schemas.opengis.net/sld/1.0.0/StyledLayerDescriptor.xsd" version="1.0.0">
                             <ColorMapEntry color="#b02a90" label="0.3m" quantity="0.3"/>
                             <ColorMapEntry color="#e06462" label="0.8m" quantity="0.8"/>
                             <ColorMapEntry color="#fca736" label="1.6m" quantity="1.6"/>
-                            <ColorMapEntry color="#f0f921" label="3m" quantity="3"/>
+                            <ColorMapEntry color="#f0f921" label=">=3m" quantity="3"/>
                         </ColorMap>
                     </RasterSymbolizer>
                 </Rule>

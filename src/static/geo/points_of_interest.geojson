@@ -1,0 +1,10 @@
+{
+"type": "FeatureCollection",
+"name": "points_of_interest",
+"crs": { "type": "name", "properties": { "name": "urn:ogc:def:crs:EPSG::3857" } },
+"features": [
+{ "type": "Feature", "properties": { "Site Name": "Te Pā o Moki" }, "geometry": { "type": "Point", "coordinates": [ 19186682.245418325066566, -5442800.240266905166209 ] } },
+{ "type": "Feature", "properties": { "Site Name": "Leeston Taumutu Rd" }, "geometry": { "type": "Point", "coordinates": [ 19184801.554012075066566, -5442444.541048155166209 ] } },
+{ "type": "Feature", "properties": { "Site Name": "Fisherman's Point" }, "geometry": { "type": "Point", "coordinates": [ 19188707.300105825066566, -5442281.326204405166209 ] } }
+]
+}
