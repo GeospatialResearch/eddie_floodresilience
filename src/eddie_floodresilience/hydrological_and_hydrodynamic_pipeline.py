@@ -602,7 +602,7 @@ def otautau(
 #     vectors = None # r'vectors/vectors.csv'
 #     resolution = 200
 #     threshold = 25000
-#     landcover = 'globcover'
+#     landcover = 'lcdb'
 #
 #     # Set up hydraulic and hydrodynamic pipeline
 #     hydrological_hydrodynamic_pipeline = HydrologicalAndHydrodynamicPipeline(
@@ -820,7 +820,7 @@ def riverton(
     vectors = elevation_scenario_df  # r'vectors/vectors.csv'
     resolution = 200
     threshold = 25000
-    landcover = 'globcover'
+    landcover = 'lcdb'
 
     # Set up hydraulic and hydrodynamic pipeline
     hydrological_hydrodynamic_pipeline = HydrologicalAndHydrodynamicPipeline(
