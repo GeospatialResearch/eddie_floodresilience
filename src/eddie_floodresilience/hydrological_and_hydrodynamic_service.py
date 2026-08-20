@@ -1,0 +1,693 @@
+# # -*- coding: utf-8 -*-
+# Copyright © 2021-2026 Geospatial Research Institute Toi Hangarau
+# LICENSE: https://github.com/GeospatialResearch/Digital-Twins/blob/master/LICENSE
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as
+# published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+"""Defines WebProcessingService processes for creating flood scenarios with hydraulic and hydrodynamic modelling."""
+
+import json
+from abc import ABC
+from enum import StrEnum
+from typing import Callable
+from urllib.parse import urlencode
+
+from celery import Task
+from pywps import ComplexInput, ComplexOutput, Format, LiteralInput, Process, WPSRequest
+from pywps.response.execute import ExecuteResponse
+
+from src.eddie_floodresilience import tasks
+from src.eddie_floodresilience.config import EnvVariable as EnvVar
+from src.eddie_floodresilience.solutions.nature.landcover import LandCoverColorMapping, LandcoverClassDataset
+
+
+class InputType(StrEnum):
+    """
+    Enum for available methods of inputting location geometry parameters into a process.
+
+    Attributes
+    ----------
+    BASELINE: Literal["baseline"]
+        A scenario that requires no specific geometry parameters
+    DRAW_POLYGON: Literal["draw polygon"]
+        A scenario where you can draw or select a single polygon to and assign a single landcover to that polygon.
+    EXISTING_LAYER: Literal["existing layer"]
+        A scenario where you can select an entire complex layer to send.
+    """
+
+    BASELINE = "baseline"
+    DRAW_POLYGON = "draw polygon"
+    EXISTING_LAYER = "existing layer"
+
+
+class PredefinedScenario(Process, ABC):
+    """Abstract base class for a Process for a scenario. Children of this provide the specific task to run."""
+
+    _LAND_COVER_COLOR_MAPPINGS = LandCoverColorMapping(LandcoverClassDataset.LCDB)
+
+    def __init__(self, title: str, identifier: str, task: Callable, input_type: InputType) -> None:
+        """
+        Define inputs and outputs of the WPS process, and assign process handler.
+
+        Parameters
+        ----------
+        title: str
+            The title of the WPS process, displayed in capabilities requests.
+        identifier: str
+            The id of the process definition, used to identify which process requests are for.
+        task: Callable
+            The Celery task associated with the process.
+        input_type: InputType
+            The method of inputting location geometry parameters into this process.
+
+        """
+        # Create bounding box WPS inputs
+        match input_type:
+            case InputType.BASELINE:
+                # A very simple placeholder configuration for baseline, ideally this would be removed.
+                # Inputs are required for TerriaJS though, so the front-end code would have to be fixed to allow this.
+                inputs = [LiteralInput(
+                    "options",
+                    "Options",
+                    data_type="integer",
+                    allowed_values=[0, 1]
+                )]
+            case InputType.DRAW_POLYGON:
+                landcover_classes = self._LAND_COVER_COLOR_MAPPINGS.filtered_color_mapping.landcover_name
+                inputs = [
+                    ComplexInput(
+                        'location',
+                        'New Land Cover Area',
+                        supported_formats=[
+                            Format(mime_type='application/vnd.geo+json',
+                                   schema='http://geojson.org/geojson-spec.html#geojson')],
+                        workdir='workdir'
+                    ),
+                    LiteralInput(
+                        "landcover",
+                        "Landcover Class",
+                        data_type="string",
+                        allowed_values=list(landcover_classes)
+                    ),
+                ]
+            case InputType.EXISTING_LAYER:
+                inputs = [
+                    ComplexInput(
+                        'landcover_layer',
+                        "New Land Cover Layer",
+                        supported_formats=[
+                            Format(mime_type='application/vnd.geo+json',
+                                   schema='http://geojson.org/geojson-spec.html#FeatureCollection')],
+                        workdir='workdir'
+                    )
+                ]
+        # Create area WPS outputs
+        outputs = [
+            ComplexOutput("landcover", "Landcover",
+                          supported_formats=[Format("application/vnd.terriajs.catalog-member+json")]),
+            ComplexOutput("catchmentBoundary", "CatchmentBoundary",
+                          supported_formats=[Format("application/vnd.terriajs.catalog-member+json")]),
+            ComplexOutput("floodDepth", "Maximum Flood Depth",
+                          supported_formats=[Format("application/vnd.terriajs.catalog-member+json")]),
+            ComplexOutput("injectionPoints", "River Flows",
+                          supported_formats=[Format("application/vnd.terriajs.catalog-member+json")]),
+            ComplexOutput("floodedBuildings", "Flooded Buildings",
+                          supported_formats=[Format("application/vnd.terriajs.catalog-member+json")])
+        ]
+        # Add outputs that only make sense for non-baseline scenarios.
+        is_baseline = input_type == InputType.BASELINE
+        if not is_baseline:
+            outputs.append(
+                ComplexOutput("depthDifference", "Difference in Flood Depth to Baseline",
+                              supported_formats=[Format("application/vnd.terriajs.catalog-member+json")])
+            )
+
+        handler = handler_for_task(task, self._LAND_COVER_COLOR_MAPPINGS, input_type)
+        # Initialise the process
+        super().__init__(
+            handler,
+            identifier=identifier,
+            title=title,
+            inputs=inputs,
+            outputs=outputs,
+        )
+
+
+def handler_for_task(task: Task, color_mapping: LandCoverColorMapping, input_type: InputType) -> Callable:
+    """
+    Create a process handler for a given task.
+
+    Parameters
+    ----------
+    task : Task
+        The callback function to be executed as a task.
+    color_mapping: LandCoverColorMapping
+        Contains mapping of LandCover details to colors for styling.
+    input_type: InputType
+        The method of inputting location geometry parameters into this process handler.
+
+    Returns
+    -------
+    Callable
+        The WPS handler function.
+    """
+
+    def _handler(request: WPSRequest, response: ExecuteResponse) -> None:
+        """
+        Process handler for modelling a flood scenario
+
+        Parameters
+        ----------
+        request : WPSRequest
+            The WPS request, containing input parameters.
+        response : ExecuteResponse
+            The WPS response, containing output data.
+
+        Returns
+        -------
+        Callable
+            The WPS handler function.
+        """
+        match input_type:
+            case InputType.BASELINE:
+                # Inputs can be ignored in a baseline
+                location_geojson = None
+            case InputType.DRAW_POLYGON:
+                # Read the inputs, combine them into one dict
+                location_geojson_str = request.inputs["location"][0].data
+                location_geojson = json.loads(location_geojson_str)
+                landcover_type_name = request.inputs["landcover"][0].data
+                location_geojson["features"][0].update({"properties": {"landcover_name": landcover_type_name}})
+            case InputType.EXISTING_LAYER:
+                location_geojson_str = request.inputs["landcover_layer"][0].data
+                location_geojson = json.loads(location_geojson_str)
+                # Remove the unique id property, it is not needed and interferes with caching.
+                location_geojson.pop("id", None)
+
+        # Check if scenario is already cached
+        cache_dict = {
+            "task": task.name,
+            "location_geojson": location_geojson,
+        }
+        check_cache_task = tasks.check_cache.delay(cache_dict)
+        scenario_id = check_cache_task.get()
+
+        # Run the task callback if its needed
+        if scenario_id is None:
+            modelling_task = task.delay(location_geojson)
+            scenario_id = modelling_task.get()
+            tasks.cache_results.delay(scenario_id, cache_dict)
+
+        is_baseline = input_type == InputType.BASELINE
+        scenario_name = "Baseline" if is_baseline else str(scenario_id)
+
+        # Add Geoserver JSON Catalog entries to WPS response for use by Terria
+        response.outputs['landcover'].data = json.dumps(
+            landcover_catalog(scenario_id, scenario_name, color_mapping)
+        )
+        response.outputs['catchmentBoundary'].data = json.dumps(catchment_boundary_catalog(scenario_id, scenario_name))
+        response.outputs['floodDepth'].data = json.dumps(flood_depth_catalog(scenario_id, scenario_name))
+        response.outputs['injectionPoints'].data = json.dumps(
+            hydrograph_injection_point_catalog(scenario_id, scenario_name)
+        )
+        response.outputs['floodedBuildings'].data = json.dumps(
+            building_flood_status_catalog(scenario_id, scenario_name)
+        )
+        if not is_baseline:
+            response.outputs['depthDifference'].data = json.dumps(depth_difference_catalog(scenario_id, scenario_name))
+
+    return _handler
+
+
+class Whirinaki1999LayerScenarioProcessService(PredefinedScenario):
+    """Class representing a WebProcessingService process for creating a flooding scenario for Whirinaki"""
+
+    # pylint: disable=too-few-public-methods
+
+    def __init__(self) -> None:
+        """Define inputs and outputs of the WPS process, and assign process handler."""
+        title = "Whirinaki 1999 Layer"
+        identifier = "whirinaki1999ExistingLayer"
+        task = tasks.create_hydrological_and_hydrodynamic_model_whirinaki_1999
+        super().__init__(title, identifier, task, InputType.EXISTING_LAYER)
+
+
+class Whirinaki1999ScenarioProcessService(PredefinedScenario):
+    """Class representing a WebProcessingService process for creating a flooding scenario for Whirinaki"""
+
+    # pylint: disable=too-few-public-methods
+
+    def __init__(self) -> None:
+        """Define inputs and outputs of the WPS process, and assign process handler."""
+        title = "Whirinaki 1999"
+        identifier = "whirinaki1999"
+        task = tasks.create_hydrological_and_hydrodynamic_model_whirinaki_1999
+        super().__init__(title, identifier, task, InputType.DRAW_POLYGON)
+
+
+class Whirinaki1999BaselineProcessService(PredefinedScenario):
+    """Class representing a WebProcessingService process for creating a flooding baseline for Whirinaki"""
+
+    # pylint: disable=too-few-public-methods
+
+    def __init__(self) -> None:
+        """Define inputs and outputs of the WPS process, and assign process handler."""
+        title = "Whirinaki 1999 Baseline"
+        identifier = "whirinaki1999baseline"
+        task = tasks.create_hydrological_and_hydrodynamic_model_whirinaki_1999
+        super().__init__(title, identifier, task, InputType.BASELINE)
+
+
+class Mataura2020ScenarioProcessService(PredefinedScenario):
+    """Class representing a WebProcessingService process for creating a flooding scenario for Mataura"""
+
+    # pylint: disable=too-few-public-methods
+
+    def __init__(self) -> None:
+        """Define inputs and outputs of the WPS process, and assign process handler."""
+        title = "Mataura 2020"
+        identifier = "mataura2020"
+        task = tasks.create_hydrological_and_hydrodynamic_model_mataura_2020
+        super().__init__(title, identifier, task, InputType.DRAW_POLYGON)
+
+
+class Mataura2020LayerScenarioProcessService(PredefinedScenario):
+    """Class representing a WebProcessingService process for creating a flooding scenario for Mataura"""
+
+    # pylint: disable=too-few-public-methods
+
+    def __init__(self) -> None:
+        """Define inputs and outputs of the WPS process, and assign process handler."""
+        title = "Mataura 2020 Layer"
+        identifier = "mataura2020ExistingLayer"
+        task = tasks.create_hydrological_and_hydrodynamic_model_mataura_2020
+        super().__init__(title, identifier, task, InputType.EXISTING_LAYER)
+
+
+class Mataura2020BaselineProcessService(PredefinedScenario):
+    """Class representing a WebProcessingService process for creating a flooding scenario for Whirinaki"""
+
+    # pylint: disable=too-few-public-methods
+
+    def __init__(self) -> None:
+        """Define inputs and outputs of the WPS process, and assign process handler."""
+        title = "Mataura 2020 Baseline"
+        identifier = "mataura2020baseline"
+        task = tasks.create_hydrological_and_hydrodynamic_model_mataura_2020
+        super().__init__(title, identifier, task, InputType.BASELINE)
+
+
+def building_flood_status_catalog(scenario_id: int, scenario_name: str) -> dict:
+    """
+    Create a dictionary in the format of a terria js catalog json for the building flood status layer.
+
+    Parameters
+    ----------
+    scenario_id : int
+        The ID of the scenario to create the catalog item for.
+    scenario_name : str
+        The name of the scenario to create the catalog item for.
+
+
+    Returns
+    ----------
+    dict
+        The TerriaJS catalog item JSON for the building flood status layer.
+    """
+    dataset_name = f"Building Flood Status - {scenario_name}"
+    gs_building_workspace = f"{EnvVar.POSTGRES_DB}-buildings"
+    gs_building_url = f"{EnvVar.GEOSERVER_HOST}:{EnvVar.GEOSERVER_PORT}/geoserver/{gs_building_workspace}/ows"
+
+    flooded_color = "darkred"
+    non_flooded_color = "darkgreen"
+    return {
+        "type": "wfs",
+        "name": dataset_name,
+        "url": gs_building_url,
+        "typeNames": f"{gs_building_workspace}:building_flood_status",
+        "parameters": {
+            "viewparams": f"scenario:{scenario_id}",
+        },
+        "maxFeatures": 300000,
+        "styles": [{
+            "id": "is_flooded",
+            "title": dataset_name,
+            "color": {
+                "mapType": "enum",
+                "colorColumn": "is_flooded_int",
+                "legend": {
+                    "title": dataset_name,
+                    "items": [
+                        {
+                            "title": "Non-Flooded",
+                            "color": non_flooded_color
+                        },
+                        {
+                            "title": "Flooded",
+                            "color": flooded_color
+                        }
+                    ]
+                },
+                "enumColors": [
+                    {
+                        "value": "0",
+                        "color": non_flooded_color
+                    },
+                    {
+                        "value": "1",
+                        "color": flooded_color
+                    }
+                ]
+            },
+            "outline": {
+                "null": {
+                    "width": 0
+                }
+            }
+        }],
+        "activeStyle": "is_flooded"
+    }
+
+
+def flood_depth_catalog(scenario_id: int, scenario_name: str) -> dict:
+    """
+    Create a dictionary in the format of a terria js catalog json for the flood depth layer.
+
+    Parameters
+    ----------
+    scenario_id : int
+        The ID of the scenario to create the catalog item for.
+    scenario_name : str
+        The name of the scenario to create the catalog item for.
+
+    Returns
+    ----------
+    dict
+        The TerriaJS catalog item JSON for the flood depth layer.
+    """
+    gs_flood_model_workspace = f"{EnvVar.POSTGRES_DB}-dt-model-outputs"
+    layer_name = f"output_{scenario_id}"
+    style_name = "plasma_0_3m"
+    display_name = f"Flood Depth - {scenario_name}"
+    return _wms_depth_catalog(
+        scenario_id,
+        workspace_name=gs_flood_model_workspace,
+        layer_name=layer_name,
+        display_name=display_name,
+        style_name=style_name
+    )
+
+
+def depth_difference_catalog(scenario_id: int, scenario_name: str) -> dict:
+    """
+    Create a dict in the format of a terria js catalog json for the difference between scenario and baseline depth.
+
+    Parameters
+    ----------
+    scenario_id : int
+        The ID of the scenario to create the catalog item for.
+    scenario_name : str
+        The name of the scenario to create the catalog item for.
+
+    Returns
+    ----------
+    dict
+        The TerriaJS catalog item JSON for the difference layer.
+    """
+    return _wms_depth_catalog(
+        scenario_id,
+        workspace_name=f"{EnvVar.POSTGRES_DB}-dt-model-outputs",
+        layer_name=f"diff_{scenario_id}",
+        display_name=f"Difference from baseline to {scenario_name}",
+        style_name="difference_r_b_0_2"
+    )
+
+
+def _wms_depth_catalog(
+    scenario_id: int, workspace_name: str, layer_name: str, display_name: str, style_name: str
+) -> dict:
+    """
+    Build a WMS catalog item JSON based on the given parameters, for a raster about water depth.
+
+    Parameters
+    ----------
+    scenario_id : int
+        The ID of the scenario to create the catalog item for.
+    workspace_name : str
+        The name of the GeoServer workspace the layer lives in.
+    layer_name : str
+        The name of the WMS layer within GeoServer.
+    display_name : str
+        The label to add to the catalog item in the front-end.
+    style_name : str
+        The name of the GeoServer style to display the layer with.
+
+    Returns
+    -------
+    dict
+        The TerriaJS catalog item JSON for the WMS Rster layer.
+    """
+    gs_service_url = f"{EnvVar.GEOSERVER_HOST}:{EnvVar.GEOSERVER_PORT}/geoserver/{workspace_name}/ows"
+    fully_qualified_layer = f"{workspace_name}:{layer_name}"
+    # Open and read HTML/mustache template file for infobox
+    with open("./src/eddie_floodresilience/flood_model/templates/flood_depth_infobox.mustache",
+              encoding="utf-8") as file:
+        flood_depth_infobox_template = file.read()
+    # Parameters for the Geoserver GetLegendGraphic request
+    legend_url_params = {
+        "service": "WMS",
+        "version": "1.3.0",
+        "request": "GetLegendGraphic",
+        "format": "image/png",
+        "sld_version": "1.1.0",
+        "layer": fully_qualified_layer,
+        "style": style_name,
+        "transparent": "true",
+        "LEGEND_OPTIONS": "hideEmptyRules:true;"
+                          "forceLabels:on;"
+                          "labelMargin:5;"
+                          "fontColor:0xffffff;"
+                          "fontStyle:bold;"
+                          "fontAntiAliasing:true;"
+    }
+    legend_url = f"{gs_service_url}?{urlencode(legend_url_params)}"
+
+    return {
+        "type": "wms",
+        "name": display_name,
+        "url": gs_service_url,
+        "layers": fully_qualified_layer,
+        "styles": style_name,
+        "featureInfoTemplate": {
+            "name": display_name,
+            "template": flood_depth_infobox_template.format(flood_scenario_id=scenario_id, layer_name=layer_name),
+        },
+        "legends": [{
+            "title": display_name,
+            "url": legend_url,
+            "urlMimeType": "image/png"
+        }],
+    }
+
+
+def catchment_boundary_catalog(scenario_id: int, scenario_name: str) -> dict:
+    """
+    Create a dictionary in the format of a terria js catalog json for the building flood status layer.
+
+    Parameters
+    ----------
+    scenario_id : int
+        The ID of the scenario to create the catalog item for.
+    scenario_name : str
+        The name of the scenario to create the catalog item for.
+
+    Returns
+    ----------
+    dict
+        The TerriaJS catalog item JSON for the building flood status layer.
+    """
+    dataset_name = f"Catchment Boundary - {scenario_name}"
+    gs_building_workspace = f"{EnvVar.POSTGRES_DB}-intermediate-wflow"
+    gs_building_url = f"{EnvVar.GEOSERVER_HOST}:{EnvVar.GEOSERVER_PORT}/geoserver/{gs_building_workspace}/ows"
+
+    return {
+        "type": "wfs",
+        "name": dataset_name,
+        "url": gs_building_url,
+        "typeNames": f"{gs_building_workspace}:wflow_catchment_boundary",
+        "parameters": {
+            "CQL_FILTER": f"flood_model_id = {scenario_id}",
+        },
+        "styles": [
+            {
+                "id": "Catchment",
+                "color": {
+                    "nullColor": "rgba(0,0,0,0)"
+                },
+                "outline": {
+                    "null": {
+                        "color": "rgba(201,0,0,1)", "width": 2
+                    }
+                }
+            }
+        ],
+        "activeStyle": "Catchment",
+    }
+
+
+def landcover_catalog(scenario_id: int, scenario_name: str, color_mapping: LandCoverColorMapping) -> dict:
+    """
+    Create a dictionary in the format of a terria js catalog json for the landcover layer.
+
+    Parameters
+    ----------
+    scenario_id : int
+        The ID of the scenario to create the catalog item for.
+    scenario_name : str
+        The name of the scenario to create the catalog item for.
+    color_mapping: LandCoverColorMapping
+        Contains mapping of LandCover details to colors for styling.
+
+    Returns
+    ----------
+    dict
+        The TerriaJS catalog item JSON for the landcover layer.
+    """
+    gs_intermediate_workspace = f"{EnvVar.POSTGRES_DB}-intermediate-wflow"
+    gs_landcover_url = f"{EnvVar.GEOSERVER_HOST}:{EnvVar.GEOSERVER_PORT}/geoserver/{gs_intermediate_workspace}/ows"
+    layer_name = f"{gs_intermediate_workspace}:lcdb_mauri_view"
+
+    landcover_color_styles = [
+        {
+            "value": mapping.landcover_name,
+            "color": mapping.color
+        } for _idx, mapping in color_mapping.color_mapping.iterrows() if isinstance(mapping.color, str)
+    ]
+
+    return {
+        "type": "wfs",
+        "name": f"Landcover - {scenario_name}",
+        "url": gs_landcover_url,
+        "typeNames": layer_name,
+        "parameters": {
+            "viewparams": f"scenario:{scenario_id}"
+        },
+        "maxFeatures": 100000,
+        "activeStyle": "Mauri",
+        "styles": [
+            {
+                "id": "Mauri",
+                "color": {
+                    "mapType": "continuous",
+                    "minimumValue": 1,
+                    "maximumValue": 10,
+                    "colorPalette": "Reds",
+                    "legend": {
+                        "items": [
+                            {
+                                "titleAbove": "Ahua Pai",
+                                "color": "rgb(103, 0, 13)"
+                            },
+                            {"color": "#9b0d14"},
+                            {"color": "#c2181c"},
+                            {"color": "#e23028"},
+                            {"color": "#f5553d"},
+                            {
+                                "color": "#fb7c5c",
+                                "title": "E Kino Ana"
+                            },
+                            {"color": "#fca082"},
+                            {"color": "#fdc3ac"},
+                            {"color": "#fdc3ac"},
+                            {"color": "#fee0d3"},
+                            {
+                                "titleBelow": "Mauri Mate",
+                                "color": "#fff5f0"
+                            }
+                        ]
+                    }
+                },
+                "hidden": False
+            },
+            {
+                "id": "LCDB description",
+                "color": {
+                    "enumColors": landcover_color_styles,
+                },
+                "hidden": False
+            },
+            {
+                "id": "Atua Domain",
+                "color": {
+                    "colorPalette": "Dark2"
+                },
+                "hidden": False
+            },
+            {
+                "id": "flood_model_output_id",
+                "hidden": True
+            }
+        ]
+    }
+
+
+def hydrograph_injection_point_catalog(scenario_id: int, scenario_name: str) -> dict:
+    """
+    Create a dictionary in the format of a terria js catalog json for the injection points, with hydrographs.
+
+    Parameters
+    ----------
+    scenario_id : int
+        The ID of the scenario to create the catalog item for.
+    scenario_name : str
+        The name of the scenario to create the catalog item for.
+
+    Returns
+    ----------
+    dict
+        The TerriaJS catalog item JSON for the building flood status layer.
+    """
+    gs_flood_inputs_workspace = f"{EnvVar.POSTGRES_DB}-flood-model-inputs"
+    gs_flood_inputs_url = f"{EnvVar.GEOSERVER_HOST}:{EnvVar.GEOSERVER_PORT}/geoserver/{gs_flood_inputs_workspace}/ows"
+
+    # Open and read HTML template for plot in infobox for TerriaJS
+    with open("./src/eddie_floodresilience/flood_model/templates/plot_infobox_template.html",
+              encoding="utf-8") as file:
+        plot_infobox_template = file.read()
+
+    # Fill in plot template vars. Some parts are double escaped so they can be used as moustache templates in TerriaJS.
+    plot_title = f"Hydrograph — Injection Point {{{{FID}}}} ({scenario_name})"
+    csv_src = f"{EnvVar.BACKEND_URL}/hydrographs/scenarios/{scenario_id}/features/{{{{FID}}}}"
+    plot_infobox_template = plot_infobox_template.format(
+        plot_title=plot_title,
+        csv_src=csv_src,
+        x_axis="Time",
+        y_axis="Flow",
+        y_units="Flow (m3/s)"
+    )
+
+    return {
+        "type": "wfs",
+        "name": f"Hydrographs - {scenario_name}",
+        "url": gs_flood_inputs_url,
+        "typeNames": f"{gs_flood_inputs_workspace}:injection_points",
+        "parameters": {
+            "CQL_FILTER": f"model_output_id={scenario_id}",
+        },
+        "featureInfoTemplate": {
+            # Double-escaped so that after python string formatting it is still mustache formatted.
+            "name": f"Hydrograph - {scenario_name} - {{{{FID}}}}",
+            "template": plot_infobox_template
+        }
+    }

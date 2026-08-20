@@ -19,26 +19,17 @@
 Runs backend tasks using Celery. Allowing for multiple long-running tasks to complete in the background.
 Allows the frontend to send tasks and retrieve status later.
 """
-import logging
-from typing import Dict, List, NamedTuple, Union
+import json
+from typing import List, NamedTuple
 
-from celery import result, signals
-from celery.worker.consumer import Consumer
 import geopandas as gpd
-from pyproj import Transformer
-import xarray
+from celery.signals import setup_logging as celery_setup_logging_signal
 
-from eddie.digitaltwin import cache_new_results, check_cache_results, retrieve_from_instructions, setup_environment
-from eddie.digitaltwin.utils import setup_logging
-from eddie.tasks import OnFailureStateTask, add_base_data_to_db, app, wkt_to_gdf  # pylint: disable=cyclic-import
-from src.eddie_floodresilience.dynamic_boundary_conditions.rainfall import main_rainfall
-from src.eddie_floodresilience.dynamic_boundary_conditions.river import main_river
-from src.eddie_floodresilience.dynamic_boundary_conditions.tide import main_tide_slr
-from src.eddie_floodresilience.flood_model import bg_flood_model, process_hydro_dem
-from src.eddie_floodresilience.run_all import DEFAULT_MODULES_TO_PARAMETERS
-
-setup_logging()
-log = logging.getLogger(__name__)
+from eddie.digitaltwin import cache_new_results, check_cache_results
+from eddie.digitaltwin.utils import setup_logging, LogLevel
+from eddie.tasks import OnFailureStateTask, app  # pylint: disable=cyclic-import
+from src.eddie_floodresilience import hydrological_and_hydrodynamic_pipeline
+from src.eddie_floodresilience.hydrological.wflow_serve_data_generator import get_hydrograph_csv
 
 
 class DepthTimePlot(NamedTuple):
@@ -59,138 +50,14 @@ class DepthTimePlot(NamedTuple):
     times: List[float]
 
 
-@signals.worker_ready.connect
-def on_startup(sender: Consumer, **_kwargs: None) -> None:  # pylint: disable=missing-param-doc
-    """
-    Initialise database, runs when Celery instance is ready.
-
-    Parameters
-    ----------
-    sender : Consumer
-        The Celery worker node instance
-    """
-    with sender.app.connection() as conn:
-        # Gather area of interest from file.
-        aoi_wkt = gpd.read_file("selected_polygon.geojson").to_crs(4326).geometry[0].wkt
-        # Send a task to initialise this area of interest.
-        base_data_parameters = DEFAULT_MODULES_TO_PARAMETERS[retrieve_from_instructions]
-        sender.app.send_task("eddie.tasks.add_base_data_to_db", args=[aoi_wkt, base_data_parameters], connection=conn)
-        # Send a task to ensure lidar datasets are evaluated.
-        sender.app.send_task("src.eddie_floodresilience.tasks.ensure_lidar_datasets_initialised")
-
-
-def create_model_for_area(selected_polygon_wkt: str, scenario_options: dict) -> result.GroupResult:
-    """
-    Create a model for the area using series of chained (sequential) sub-tasks.
-
-    Parameters
-    ----------
-    selected_polygon_wkt : str
-        The polygon defining the selected area to run the model for. Defined in WKT form.
-    scenario_options: dict
-        Options for scenario modelling inputs.
-
-    Returns
-    -------
-    result.GroupResult
-        The task result for the long-running group of tasks. The task ID represents the final task in the group.
-    """
-    base_data_parameters = DEFAULT_MODULES_TO_PARAMETERS[retrieve_from_instructions]
-    return (
-        add_base_data_to_db.si(selected_polygon_wkt, base_data_parameters) |
-        process_dem.si(selected_polygon_wkt) |
-        generate_tide_inputs.si(selected_polygon_wkt, scenario_options) |
-        generate_river_inputs.si(selected_polygon_wkt) |
-        run_flood_model.si(selected_polygon_wkt) |
-        cache_results.s(selected_polygon_wkt, scenario_options)
-    )()
+@celery_setup_logging_signal.connect
+def configure_celery_logging(*_args: tuple, **_kwargs: dict) -> None:  # pylint: disable=missing-param-doc
+    """Set up celery logging to use the same logging as if running the modules directly."""
+    setup_logging(LogLevel.INFO)
 
 
 @app.task(base=OnFailureStateTask)
-def process_dem(selected_polygon_wkt: str) -> None:
-    """
-    Task to ensure hydrologically-conditioned DEM is processed for the given area and added to the database.
-
-    Parameters
-    ----------
-    selected_polygon_wkt : str
-        The polygon defining the selected area to process the DEM for. Defined in WKT form.
-    """
-    parameters = DEFAULT_MODULES_TO_PARAMETERS[process_hydro_dem]
-    selected_polygon = wkt_to_gdf(selected_polygon_wkt)
-    process_hydro_dem.main(selected_polygon, **parameters)
-
-
-@app.task(base=OnFailureStateTask)
-def generate_rainfall_inputs(selected_polygon_wkt: str) -> None:
-    """
-    Task to ensure rainfall input data for the given area is added to the database and model input files are created.
-
-    Parameters
-    ----------
-    selected_polygon_wkt : str
-        The polygon defining the selected area to add rainfall data for. Defined in WKT form.
-    """
-    parameters = DEFAULT_MODULES_TO_PARAMETERS[main_rainfall]
-    selected_polygon = wkt_to_gdf(selected_polygon_wkt)
-    main_rainfall.main(selected_polygon, **parameters)
-
-
-@app.task(base=OnFailureStateTask)
-def generate_tide_inputs(selected_polygon_wkt: str, scenario_options: dict) -> None:
-    """
-    Task to ensure tide input data for the given area is added to the database and model input files are created.
-
-    Parameters
-    ----------
-    selected_polygon_wkt : str
-        The polygon defining the selected area to add tide data for. Defined in WKT form.
-    scenario_options: dict
-        Options for scenario modelling inputs.
-    """
-    parameters = DEFAULT_MODULES_TO_PARAMETERS[main_tide_slr] | scenario_options
-    selected_polygon = wkt_to_gdf(selected_polygon_wkt)
-    main_tide_slr.main(selected_polygon, **parameters)
-
-
-@app.task(base=OnFailureStateTask)
-def generate_river_inputs(selected_polygon_wkt: str) -> None:
-    """
-    Task to ensure river input data for the given area is added to the database and model input files are created.
-
-    Parameters
-    ----------
-    selected_polygon_wkt : str
-        The polygon defining the selected area to add river data for. Defined in WKT form.
-    """
-    parameters = DEFAULT_MODULES_TO_PARAMETERS[main_river]
-    selected_polygon = wkt_to_gdf(selected_polygon_wkt)
-    main_river.main(selected_polygon, **parameters)
-
-
-@app.task(base=OnFailureStateTask)
-def run_flood_model(selected_polygon_wkt: str) -> int:
-    """
-    Task to run flood model using input data from previous tasks.
-
-    Parameters
-    ----------
-    selected_polygon_wkt : str
-        The polygon defining the selected area to run the flood model for. Defined in WKT form.
-
-    Returns
-    -------
-    int
-        The database ID of the flood model that has been run.
-    """
-    parameters = DEFAULT_MODULES_TO_PARAMETERS[bg_flood_model]
-    selected_polygon = wkt_to_gdf(selected_polygon_wkt)
-    flood_model_id = bg_flood_model.main(selected_polygon, **parameters)
-    return flood_model_id
-
-
-@app.task(base=OnFailureStateTask)
-def cache_results(flood_model_id: int, selected_polygon_wkt: str, scenario_options: dict) -> int:
+def cache_results(flood_model_id: int, scenario_options: dict) -> int:
     """
     Task to cache the scenario options used to generate an existing model with the given model id, for faster retrieval.
 
@@ -198,10 +65,6 @@ def cache_results(flood_model_id: int, selected_polygon_wkt: str, scenario_optio
     ----------
     flood_model_id : int
         The database id of the existing model output to attach the cached parameters to.
-    selected_polygon_wkt: gpd.GeoDataFrame
-        The selected area of interest to cache, in WKT form.
-        Any area fully intersecting this one can be retrieved later if the other parameters match.
-
     scenario_options : dict
         The input parameters to the model to cache, which must match for later retrieval.
 
@@ -210,23 +73,17 @@ def cache_results(flood_model_id: int, selected_polygon_wkt: str, scenario_optio
     int
         model_id re-returned to allow method chaining.
     """
-    parameters = DEFAULT_MODULES_TO_PARAMETERS[cache_new_results]
-    selected_polygon = wkt_to_gdf(selected_polygon_wkt)
-    cache_new_results.main(selected_polygon, flood_model_id, scenario_options, parameters["log_level"])
+    cache_new_results.main(flood_model_id, scenario_options)
     return flood_model_id
 
 
 @app.task(base=OnFailureStateTask)
-def check_cache(selected_polygon_wkt: str, scenario_options: dict) -> int | None:
+def check_cache(scenario_options: dict) -> int | None:
     """
-    Task to search the cache for model input generated with identical scenario_options and a selected polygon which
-    contains this function's selected_polygon.
+    Check cache table for model output generated from identical scenario_options, and finds matching model ID.
 
     Parameters
     ----------
-    selected_polygon_wkt : str
-        The area of interest to search the cache for in WKT form.
-        Positive results if the cached polygon contains this polygon.
     scenario_options : dict
         The model input parameters, which must match exactly with the cached results for a positive match.
 
@@ -235,142 +92,100 @@ def check_cache(selected_polygon_wkt: str, scenario_options: dict) -> int | None
     int | None
         Returns the matching model_id if a match is found. Otherwise, None.
     """
-    selected_polygon = wkt_to_gdf(selected_polygon_wkt)
-    flood_model_id = check_cache_results.main(selected_polygon, scenario_options)
+    flood_model_id = check_cache_results.main(scenario_options)
     return flood_model_id
 
 
 @app.task(base=OnFailureStateTask)
-def refresh_lidar_datasets() -> None:
+def create_hydrological_and_hydrodynamic_model_whirinaki_1999(location_geojson: dict | None) -> int:
     """
-    Web-scrapes OpenTopography metadata to create the datasets table containing links to LiDAR data sources.
-    Takes a long time to run but needs to be run periodically so that the datasets are up to date.
-    """
-    process_hydro_dem.refresh_lidar_datasets()
-
-
-@app.task(base=OnFailureStateTask)
-def ensure_lidar_datasets_initialised() -> None:
-    """
-    Check if LiDAR datasets table is initialised.
-    This table holds URLs to data sources for LiDAR.
-    If it is not initialised, then it initialises it by web-scraping OpenTopography which takes a long time.
-    """
-    process_hydro_dem.ensure_lidar_datasets_initialised()
-
-
-@app.task(base=OnFailureStateTask)
-def get_model_output_filepath_from_model_id(model_id: int) -> str:
-    """
-    Task to query the database and find the filepath for the model output for the model_id.
+    Task to run a hydrological and hydronynamic model for Whirinaki.
 
     Parameters
     ----------
-    model_id : int
-        The database id of the model output to query.
+    location_geojson: dict | None
+        A GeoJSON dict with polygons dictating where to change landcover.
 
     Returns
     -------
-    str
-        Serialized posix-style str version of the filepath.
+    int
+        The resultant flood model output ID.
     """
-    engine = setup_environment.get_database()
-    with engine.connect() as conn:
-        return bg_flood_model.model_output_from_db_by_id(conn, model_id).as_posix()
-
-
-@app.task(base=OnFailureStateTask)
-def get_depth_by_time_at_point(model_id: int, lat: float, lng: float) -> DepthTimePlot:
-    """
-    Task to query a point in a flood model output and return the list of depths and times.
-
-    Parameters
-    ----------
-    model_id : int
-        The database id of the model output to query.
-    lat : float
-        The latitude of the point to query.
-    lng : float
-        The longitude of the point to query.
-
-
-    Returns
-    -------
-    DepthTimePlot
-        Tuple of depths list and times list for the pixel in the output nearest to the point.
-    """
-    engine = setup_environment.get_database()
-    with engine.connect() as conn:
-        model_file_path = bg_flood_model.model_output_from_db_by_id(conn, model_id).as_posix()
-    with xarray.open_dataset(model_file_path) as ds:
-        transformer = Transformer.from_crs(4326, 2193)
-        y, x = transformer.transform(lat, lng)
-        da = ds["hmax_P0"].sel(xx_P0=x, yy_P0=y, method="nearest")
-
-    depths = da.values.tolist()
-    times = da.coords['time'].values.tolist()
-    return DepthTimePlot(depths, times)
-
-
-@app.task(base=OnFailureStateTask)
-def get_model_extents_bbox(model_id: int) -> str:
-    """
-    Task to find the bounding box of a given model output.
-
-    Parameters
-    ----------
-    model_id : int
-        The database id of the model output to query.
-
-    Returns
-    -------
-    str
-        The bounding box in 'x1,y1,x2,y2' format.
-    """
-    engine = setup_environment.get_database()
-    with engine.connect() as conn:
-        extents = bg_flood_model.model_extents_from_db_by_id(conn, model_id).geometry[0]
-    # Retrieve a tuple of the corners of the extents
-    bbox_corners = extents.bounds
-    # Convert the tuple into a string in x1,y1,x2,y2 form
-    return ",".join(map(str, bbox_corners))
-
-
-@app.task(base=OnFailureStateTask)
-def get_valid_parameters_based_on_confidence_level() -> Dict[str, Dict[str, Union[str, int]]]:
-    """
-    Task to get information on valid tide and sea-level-rise parameters based on the valid values in the database.
-    These parameters are mostly dependent on the "confidence_level" parameter, so that is the key in the returned dict.
-
-    Returns
-    -------
-    Dict[str, Dict[str, Union[str, int]]]
-        Dictionary with confidence_level as the key, and 2nd level dict with allowed values for dependent values.
-    """
-    return main_tide_slr.get_valid_parameters_based_on_confidence_level()
-
-
-@app.task(base=OnFailureStateTask)
-def validate_slr_parameters(
-    scenario_options: Dict[str, Union[str, float, int, bool]]
-) -> main_tide_slr.ValidationResult:
-    """
-    Task to validate each of the sea-level-rise parameters.
-
-    Parameters
-    ----------
-    scenario_options : Dict[str, Union[str, float, int, bool]]
-        Options for scenario modelling inputs, coming from JSON body.
-
-    Returns
-    -------
-    main_tide_slr.ValidationResult
-        Result of the validation, with validation failure reason if applicable
-    """
-    return main_tide_slr.validate_slr_parameters(
-        scenario_options["projectedYear"],
-        scenario_options["confidenceLevel"],
-        scenario_options["sspScenario"],
-        scenario_options["addVerticalLandMovement"],
-        scenario_options["percentile"],
+    landcover_scenario_gdf = read_location_geojson(location_geojson)
+    flood_model_output_id = hydrological_and_hydrodynamic_pipeline.whirinaki(
+        nature_scenario_gdf=landcover_scenario_gdf
     )
+    return flood_model_output_id
+
+
+@app.task(base=OnFailureStateTask)
+def create_hydrological_and_hydrodynamic_model_mataura_2020(location_geojson: dict) -> int:
+    """
+    Task to run a hydrological and hydronynamic model for Mataura.
+
+    Parameters
+    ----------
+    location_geojson: dict | None
+        A GeoJSON dict with polygons dictating where to change landcover.
+
+    Returns
+    -------
+    int
+        The resultant flood model output ID.
+    """
+    landcover_scenario_gdf = read_location_geojson(location_geojson)
+    flood_model_output_id = hydrological_and_hydrodynamic_pipeline.mataura(
+        nature_scenario_gdf=landcover_scenario_gdf
+    )
+    return flood_model_output_id
+
+
+@app.task(base=OnFailureStateTask)
+def read_hydrograph_data(flood_model_id: int, injection_point_feature_id: str) -> str:
+    """
+    Task to run read hydrograph data for an injection point.
+
+    Parameters
+    ----------
+    flood_model_id: str
+        The flood model output ID to find query hydrograph data for.
+    injection_point_feature_id: str
+        The FID of the specific injection point to query hydrograph data for.
+
+    Returns
+    -------
+    str
+        CSV formatted hydrograph data for an injection point.
+    """
+    return get_hydrograph_csv(flood_model_id, injection_point_feature_id)
+
+
+def read_location_geojson(location_geojson: dict | None) -> gpd.GeoDataFrame | None:
+    """
+    Read a GeoJSON string and a landcover name into a GeoDataFrame,
+
+    Parameters
+    ----------
+    location_geojson: str | None
+        A GeoJSON string with polygons dictating where to change landcover.
+
+    Returns
+    -------
+    gpd.GeoDataFrame
+        The GeoDataFrame containing polygons.
+
+    Raises
+    ------
+    ValueError
+        If the expected column 'landcover_name' is not present in the GeoJSON.
+    """
+    if location_geojson is None:
+        return None
+    geojson_str = json.dumps(location_geojson)
+    landcover_scenario_gdf = gpd.read_file(geojson_str, driver="GeoJSON")
+
+    # Check GDF contains the necessary landcover data
+    if "landcover_name" not in landcover_scenario_gdf.columns:
+        raise ValueError(f"Expected column 'landcover_name' in {landcover_scenario_gdf.columns}")
+
+    return landcover_scenario_gdf

@@ -23,10 +23,12 @@ or other clients.
 import logging
 import os
 import pathlib
-from xml.sax import saxutils
+from datetime import datetime
+from textwrap import dedent
 
-from sqlalchemy.engine import Connection
+import rasterio as rio
 import xarray as xr
+from sqlalchemy.engine import Connection
 
 from eddie import geoserver
 from src.eddie_floodresilience.config import EnvVariable
@@ -49,7 +51,11 @@ def convert_nc_to_gtiff(nc_file_path: pathlib.Path) -> pathlib.Path:
     pathlib.Path
         The filepath of the new GeoTiff file.
     """
-    new_name = f"{nc_file_path.stem}.tif"
+    # Create new unique file name to avoid clobbering
+    time = datetime.now().strftime("%Y%m%d%H%M%S")
+    output_dir = nc_file_path.parent
+    new_name = f"{output_dir.name}-{time}-out.tif"
+
     log.info(f"Converting {nc_file_path.name} to {new_name}")
     temp_dir = pathlib.Path("tmp/gtiff")
     # Create temporary storage folder if it does not already exist
@@ -57,7 +63,7 @@ def convert_nc_to_gtiff(nc_file_path: pathlib.Path) -> pathlib.Path:
     gtiff_filepath = temp_dir / new_name
     # Convert the max depths to geo tiff
     with xr.open_dataset(nc_file_path, decode_coords="all") as ds:
-        ds['hmax_P0'][0].rio.to_raster(gtiff_filepath)
+        ds['hmax_P0'].isel(time=-1).rio.to_raster(gtiff_filepath)
     return pathlib.Path(os.getcwd()) / gtiff_filepath
 
 
@@ -86,39 +92,23 @@ def create_building_layers(conn: Connection, workspace_name: str, data_store_nam
 
     # More complex layer that has to do dynamic sql queries against model output ID to fetch
     flood_status_layer_name = "building_flood_status"
-    flooded_buildings_sql_query = """
+    flooded_buildings_sql_query = dedent(
+        # @formatter:off - formatter impacts the %scenario% term
+        """
         SELECT *,
                is_flooded::int AS is_flooded_int
         FROM nz_building_outlines
                  LEFT OUTER JOIN building_flood_status USING (building_outline_id)
         WHERE building_outline_lifecycle ILIKE 'current'
-        AND flood_model_id=%scenario%
-    """
-    xml_escaped_sql = saxutils.escape(flooded_buildings_sql_query, entities={r"'": "&apos;", "\n": "&#xd;"})
+          AND flood_model_id = %scenario%
+        """
+        # @formatter:on
+    )
 
-    flood_status_xml_query = rf"""
-      <metadata>
-        <entry key="JDBC_VIRTUAL_TABLE">
-          <virtualTable>
-            <name>{flood_status_layer_name}</name>
-            <sql>
-                {xml_escaped_sql}
-            </sql>
-            <escapeSql>false</escapeSql>
-            <geometry>
-              <name>geometry</name>
-              <type>Polygon</type>
-              <srid>2193</srid>
-            </geometry>
-            <parameter>
-              <name>scenario</name>
-              <defaultValue>-1</defaultValue>
-              <regexpValidator>^(-)?[\d]+$</regexpValidator>
-            </parameter>
-          </virtualTable>
-        </entry>
-      </metadata>
-    """
+    flood_status_xml_query = geoserver.database_layers.generate_metadata_elem(
+        flood_status_layer_name, flooded_buildings_sql_query
+    )
+
     geoserver.create_datastore_layer(
         conn,
         workspace_name,
@@ -176,3 +166,27 @@ def add_model_output_to_geoserver(model_output_path: pathlib.Path, model_id: int
     # We can remove the temporary raster
     gtiff_filepath.unlink()
     create_viridis_style_if_not_exists()
+
+
+def asc_to_gtiff(asc_path: pathlib.Path, gtiff_filepath: pathlib.Path) -> None:
+    """
+    Convert an ASCII raster (CRS=2193) to a GeoTiff file.
+
+    Parameters
+    ----------
+    asc_path : pathlib.Path
+        The path to the ASCII raster.
+    gtiff_filepath : pathlib.Path
+        The path to the result GeoTiff file.
+    """
+    with rio.open(asc_path) as src:
+        # Read the first band's data into a numpy array
+        asc_data = src.read(1)
+
+        # Extract metadata profile and update driver to GTiff
+        meta = src.meta.copy()
+        meta.update(driver='GTiff', crs=rio.crs.CRS.from_epsg(2193))  # pylint: disable=c-extension-no-member
+
+        # Write data to a new GTiff
+        with rio.open(gtiff_filepath, 'w', **meta) as dst:
+            dst.write(asc_data, 1)

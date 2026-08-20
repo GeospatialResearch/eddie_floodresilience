@@ -20,13 +20,12 @@ import pathlib
 
 import geopandas as gpd
 import pandas as pd
-import rasterio as rio
-import shapely
 from sqlalchemy.engine import Connection
 from sqlalchemy.sql import text
 import xarray
 
 from src.eddie_floodresilience.flood_model.serve_model import create_building_database_views_if_not_exists
+from src.eddie_floodresilience.raster import polygonize_raster
 
 
 def store_flooded_buildings_in_database(conn: Connection, buildings: pd.DataFrame, flood_model_id: int) -> None:
@@ -77,7 +76,7 @@ def find_flooded_buildings(conn: Connection,
     """
     # Open flood output and read the maximum depth raster
     with xarray.open_dataset(flood_model_output_path, decode_coords="all") as ds:
-        max_depth_raster = ds["hmax_P0"]
+        max_depth_raster = ds["band_data"]
     # Find areas flooded in a polygon format, if they are deeper than flood_depth_threshold
     thresholded_flood_polygons = polygonize_flooded_area(max_depth_raster, flood_depth_threshold)
     # Get building outlines from database
@@ -137,9 +136,10 @@ def retrieve_building_outlines(conn: Connection, area_of_interest: gpd.GeoDataFr
     crs = area_of_interest.crs.to_epsg()
     # Construct the query to find buildings within the area of interest
     command_text = """
-    SELECT building_outline_id, geometry FROM nz_building_outlines
-    WHERE ST_INTERSECTS(nz_building_outlines.geometry, ST_GeomFromText(:aoi_wkt, :crs));
-    """
+                   SELECT building_outline_id, geometry
+                   FROM nz_building_outlines
+                   WHERE ST_INTERSECTS(nz_building_outlines.geometry, ST_GeomFromText(:aoi_wkt, :crs)); \
+                   """
     query = text(command_text).bindparams(
         aoi_wkt=str(aoi_wkt),
         crs=str(crs)
@@ -170,11 +170,4 @@ def polygonize_flooded_area(flood_raster: xarray.DataArray, flood_depth_threshol
     # Find areas that are flooded to at least the flood_depth_threshold depth
     mask = flood_raster >= flood_depth_threshold
     # Turn the flood mask into a vector polygon form
-    flood_polygons = rio.features.shapes(flood_raster, mask=mask, transform=flood_raster.rio.transform())
-    polygons_records = []
-    # Add each polygon to a list in a form ready to be ingested into a GeoDataFrame to be returned
-    for polygon, _h in flood_polygons:
-        shapely_poly = shapely.Polygon(polygon['coordinates'][0])
-        new_row = {"geometry": shapely_poly}
-        polygons_records.append(new_row)
-    return gpd.GeoDataFrame(polygons_records, crs=flood_raster.rio.crs.wkt)
+    return polygonize_raster(flood_raster, mask)

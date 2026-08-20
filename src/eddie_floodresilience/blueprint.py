@@ -1,13 +1,12 @@
 """Endpoints and flask configuration for the Flood Resilience Digital Twin"""
-from http.client import ACCEPTED
 import os
 import pathlib
+from http.client import OK
 
-from flask import Blueprint, jsonify, make_response, Response
+from flask import Blueprint, Response, make_response
 
 from eddie.check_celery_alive import check_celery_alive
-from src.eddie_floodresilience import tasks
-from src.eddie_floodresilience.flood_model.flood_scenario_process_service import FloodScenarioProcessService
+from src.eddie_floodresilience import hydrological_and_hydrodynamic_service as hh_service, tasks
 
 os.environ.pop("Path", None)
 # See issue https://github.com/GeospatialResearch/eddie_floodresilience/issues/1 for reason behind disabled QA
@@ -15,14 +14,19 @@ from pywps import Service  # pylint: disable=wrong-import-position,wrong-import-
 
 blueprint = Blueprint('eddie_floodresilience', __name__)
 processes = [
-    FloodScenarioProcessService()
+    hh_service.Whirinaki1999BaselineProcessService(),
+    hh_service.Whirinaki1999ScenarioProcessService(),
+    hh_service.Whirinaki1999LayerScenarioProcessService(),
+    hh_service.Mataura2020BaselineProcessService(),
+    hh_service.Mataura2020ScenarioProcessService(),
+    hh_service.Mataura2020LayerScenarioProcessService()
 ]
 
-process_descriptor = {process.identifier: process.abstract for process in processes}
-service = Service(processes, ['src/pywps.cfg'])
 for working_dir in ["workdir", "outputs", "logs"]:
     path = pathlib.Path("./tmp/pywps") / working_dir
     path.mkdir(exist_ok=True, parents=True)
+process_descriptor = {process.identifier: process.abstract for process in processes}
+service = Service(processes, ['src/pywps.cfg'])
 
 
 @blueprint.route('/wps', methods=['GET', 'POST'])
@@ -39,24 +43,27 @@ def wps() -> Service:
     return service
 
 
-@blueprint.route('/datasets/update', methods=["POST"])
+@blueprint.route('/hydrographs/scenarios/<int:scenario_id>/features/<string:feature_id>')
 @check_celery_alive
-def refresh_lidar_data_sources() -> Response:
+def retrieve_hydrograph(scenario_id: int, feature_id: str) -> Response:
     """
-    Update LiDAR data sources to the most recent.
-    Web-scrape OpenTopography metadata to update the datasets table containing links to LiDAR data sources.
-    Takes a long time to run but needs to be run periodically so that the datasets are up to date.
-    Supported methods: POST
+    Find hydrograph data for the given scenario and feature as CSV format.
+
+    Parameters
+    ----------
+    scenario_id: str
+        The flood model output ID to find query hydrograph data for.
+    feature_id: str
+        The FID of the specific injection point to query hydrograph data for.
 
     Returns
     -------
     Response
-        ACCEPTED is the expected response. Response body contains Celery taskId
+        Response with body containing hydrograph data in CSV format.
     """
-    # Start task to refresh lidar datasets
-    task = tasks.refresh_lidar_datasets.delay()
-    # Return HTTP Response with task id, so it can be monitored with get_status(taskId)
-    return make_response(
-        jsonify({"taskId": task.id}),
-        ACCEPTED
-    )
+    get_hydrograph_task = tasks.read_hydrograph_data.delay(scenario_id, feature_id)
+    hydrograph_data = get_hydrograph_task.get()
+
+    response = make_response(hydrograph_data, OK)
+    response.content_type = "text/csv"
+    return response

@@ -1,0 +1,402 @@
+# -*- coding: utf-8 -*-
+# Copyright © 2021-2026 Geospatial Research Institute Toi Hangarau
+# LICENSE: https://github.com/GeospatialResearch/Digital-Twins/blob/master/LICENSE
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as
+# published by the Free Software Foundation, either version 3 of the
+# License, or (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+"""Classes to configure and write parameter files for BG-Flood."""
+
+import logging
+from datetime import datetime
+from pathlib import Path
+from textwrap import dedent
+
+import geopandas as gpd
+import numpy as np
+import pandas as pd
+from shapely.geometry import Polygon, Point
+
+from ..flood_model_parameters_generator import FloodType, FloodModelParametersGenerator
+
+log = logging.getLogger(__name__)
+
+
+class BGFloodParametersGenerator(FloodModelParametersGenerator):
+    """
+    This class is to generate parameter files for flood model
+
+    Attributes
+    ----------
+    flood_model_path : Path
+        Directory to folder storing flood model data
+    terrain_bounding_box : Polygon
+        Bounding's box of terrain data
+    start_time : datetime
+        Starting time details. Format is "yyyy-mm-ddThh:mm:ss"
+    end_time : datetime
+        Ending time details.
+    polygons : gpd.GeoDataFrame | None = None
+        This polygon dataframe has 'landcover' column with new values
+    vectors : pd.DataFrame | None = None
+        Dataframe that contains 'vector_path', 'value', 'distance' columns:
+        - 'vector_path': Column that stores directories to specific vectors
+        - 'value: Column that stores value of the vectors used to increase/decrease elevation
+        - 'distance': Column that stores value to smooth the decreased elevation
+    injection_points_flow : pd.DataFrame
+        The flow data for each point
+    injection_points : gpd.GeoDataFrame
+        The points geometry for flow data
+    """
+
+    def __init__(
+        self,
+        flood_model_path: Path,
+        hydromt_path: Path,
+        terrain_bounding_box: Polygon,
+        start_time: datetime,
+        end_time: datetime,
+        flood_type: FloodType = FloodType.FLUVIAL,
+        polygons: gpd.GeoDataFrame | None = None,
+        vectors: pd.DataFrame | None = None
+    ) -> None:
+        """
+        Generate parameter files for flood model
+
+        Parameters
+        ----------
+        flood_model_path : Path
+            Directory to folder storing flood model data
+        hydromt_path : Path
+            Directory to folder storing necessary data
+        terrain_bounding_box : Polygon
+            Bounding's box of terrain data
+        start_time : datetime
+            Starting time details. Format is "yyyy-mm-ddThh:mm:ss"
+        end_time : datetime
+            Ending time details.
+        flood_type : FloodType = FloodType.FLUVIAL
+            Either FLUVIAL or PLUVIAL. Default is FLUVIAL
+        polygons : gpd.GeoDataFrame | None = None
+            This polygon dataframe has 'landcover' column with new values
+        vectors : pd.DataFrame | None = None
+            Dataframe that contains 'vector_path', 'value', 'distance' columns:
+            - 'vector_path': Column that stores directories to specific vectors
+            - 'value: Column that stores value of the vectors used to increase/decrease elevation
+            - 'distance': Column that stores value to smooth the decreased elevation
+        """
+        super().__init__(
+            flood_model_path,
+            hydromt_path,
+            terrain_bounding_box,
+            start_time,
+            end_time,
+            flood_type,
+            polygons,
+            vectors
+        )
+
+        # Modify injection points
+        # Add column that converts time to seconds
+        self.injection_points_flow['time_in_second'] = np.arange(
+            0,
+            3600 * (len(self.injection_points_flow)),
+            3600
+        )
+        self.injection_points = gpd.read_file(self.flood_model_path / "injection_points.shp")
+
+        # Create output folder
+        self.output_folder = self.flood_model_path / "output"
+        self.output_folder.mkdir(parents=True, exist_ok=True)
+
+    def write_injection_point_files(self) -> None:
+        """Generate flow text data for BG-Flood"""
+        log.info("Generating flow text data")
+        # Create a loop to generate flow text data for BG-Flood
+        for col in self.injection_points_flow.columns:
+
+            # Choose only flow text columns
+            if col.startswith("Q_"):
+                # Remove the Q before the flow ID
+                fid = col.split("_")[1]  # e.g. Q_97 → 97
+
+                # Extract time
+                times = self.injection_points_flow["time_in_second"].values
+
+                # Extract values
+                values = self.injection_points_flow[col].values
+
+                # Stack them up
+                out = np.column_stack([times, values])
+
+                # Write out into text data
+                # <i want to use the output folder path here>
+
+                np.savetxt(
+                    self.output_folder / f"river{fid}.txt",
+                    out,
+                    fmt="%.6f",
+                    delimiter="\t"
+                )
+
+    def generate_tidal_directions(self) -> dict[str, Polygon]:
+        """
+        Generate a list of tidal directions - top, bottom, right, left.
+        Each direction occupies each of four triangle shapes of the AOI boundary.
+        These triangles are generated by the centroid and four corners of the AOI boundary.
+
+        Returns
+        -------
+        directions : list[dict[str, Polygon]]
+            A list of directions with their polygons
+        """
+        # Get xmin, ymin, xmax, ymax from 10-m-buffered bounding box
+        xmin, ymin, xmax, ymax = self.terrain_bounding_box.buffer(10).bounds
+
+        # Get centroid of bounding box
+        centroid = self.terrain_bounding_box.centroid
+
+        # Create a dictionary of directions
+        directions = {
+            'top': Polygon([(xmin, ymax), (xmax, ymax), centroid]),
+            'bottom': Polygon([(xmin, ymin), (xmax, ymax), centroid]),
+            'right': Polygon([(xmax, ymax), (xmax, ymax), centroid]),
+            'left': Polygon([(xmin, ymax), (xmin, ymin), centroid]),
+        }
+
+        return directions
+
+    def tide_text_file_design(
+        self,
+        direction_name: str
+    ) -> None:
+        """
+        Design codes for generating tide text data
+
+        Parameters
+        ----------
+        direction_name : str
+            Any of four edges of DEM - top, bottom, left, and right
+        """
+        with open(self.flood_model_path / self.output_folder / f"{direction_name}_bnd.txt", "w",
+                  encoding="utf-8") as f:
+            # write header
+            f.write("# Water level boundary\n")
+
+            # Write tide values
+            for _idx, row in self.tide_df.iterrows():
+                line = f"{row.seconds:<10.0f}{row.value:.4f}\n"
+                f.write(line)
+
+    def nontide_text_file_design(
+        self,
+        direction_name: str
+    ) -> None:
+        """
+        Design codes for generating non-tide text data
+
+        Parameters
+        ----------
+        direction_name : str
+            Any of four edges of DEM - top, bottom, left, and right
+        """
+        with open(self.flood_model_path / self.output_folder / f"{direction_name}_bnd.txt", "w", encoding="utf-8") as f:
+            # write header
+            f.write("# Water level boundary\n")
+
+            # loop through your dataframe
+            for t in self.injection_points_flow["time_in_second"]:
+                f.write(f"{int(t)}\t0.0\n")
+
+    def generate_tidal_point_files(self) -> None:
+        """Generate tidal point files"""
+        # Generate a list of directions
+        directions = self.generate_tidal_directions()
+
+        # Get tidal point
+        tidal_point = gpd.read_file(self.flood_model_path / "tidal_point.shp")
+
+        for direction_order in range(len(directions)):
+            # Get direction and name
+            direction_value = list(directions.values())[direction_order]
+            direction_name = list(directions.keys())[direction_order]
+
+            if tidal_point.geometry[0].within(direction_value):
+                self.tide_text_file_design(direction_name)
+
+            else:
+                self.nontide_text_file_design(direction_name)
+
+    def pixel_bounds_from_centroid(
+        self,
+        point: Point
+    ) -> tuple[float, float, float, float]:
+        """
+        Identify pixel bounds for flow through centroid
+
+        Parameters
+        ----------
+        point : Point
+            Centroid
+
+        Returns
+        -------
+        tuple[float, float, float, float]
+            Pixel bounds as (xmin, xmax, ymin, ymax)
+        """
+        # Get coordinates of centroids
+        x, y = point.x, point.y
+
+        # Move x, y inside
+        x, y = self.move_points_inside_aoi(
+            list(self.terrain_bounding_box.bounds),
+            [x, y],
+            buffer_distance=12,
+            tolerance=5
+        )
+
+        # Calculate pixel bounds
+        pixel_bounds = (
+            x - 4,  # xmin
+            x + 4,  # xmax
+            y - 4,  # ymin
+            y + 4  # ymax
+        )
+
+        return pixel_bounds
+
+    def flow_text_data_design(
+        self,
+        flow_id: str,
+        pixel_bounds: tuple[float, float, float, float]
+    ) -> str:
+        """
+        Design river text data for BG Flood parameter file
+
+        Parameters
+        ----------
+        flow_id : str
+            ID of the flow data
+        pixel_bounds: tuple[float, float, float, float]
+            Pixel bounds as (xmin, xmax, ymin, ymax)
+
+        Returns
+        -------
+        flow_text : str
+            Name of flow data and its coordinates
+        """
+        # Format flow text data
+        xmin, xmax, ymin, ymax = pixel_bounds
+
+        # Design flow text
+        flow_text = (
+            f"river = river{flow_id[2:]}.txt,"
+            f"{xmin:.1f},{xmax:.1f},{ymin:.1f},{ymax:.1f};"
+        )
+
+        return flow_text
+
+    def flow_text_data_generator(
+        self
+    ) -> list:
+        """
+        Generate river text data for BG-Flood parameter file
+
+        Returns
+        -------
+        flow_lines : list
+            A lsit of flow information for BG-Flood parameter file
+        """
+        log.info("Generate flow BG Flood parameter file")
+        # Calculate pixel bounds for each injection points
+        self.injection_points["bounds"] = self.injection_points.geometry.apply(
+            self.pixel_bounds_from_centroid
+        )
+
+        # Each line of text represents the flow
+        flow_lines = [
+            self.flow_text_data_design(row.FID, row.bounds)
+            for _, row in self.injection_points.iterrows()
+        ]
+
+        return flow_lines
+
+    def write_flood_model_parameter_file(self) -> Path:
+        """
+        Generate BG-Flood param file.
+
+        Returns
+        -------
+        Path
+            The directory the parameter file was created in.
+        """
+        # Get terrain name path
+        terrain_name = str(self.flood_model_path / "8m_geofabric_clipped.nc")
+
+        # Set up pluvial command
+        if self.flood_type == FloodType.PLUVIAL:
+            rainfall_path = self.flood_model_path / "precipitation_dynamic.nc"
+            rainfall_command = f"rainfile = {str(rainfall_path)}?depth;"
+        else:
+            rainfall_command = ""
+
+        # Create param text
+        param_text = dedent(f"""\
+        bathy = {terrain_name}?z;
+        dx = 16.0;
+        outputtimestep = 7200;
+        endtime = {self.seconds};
+        mask = 9999;
+        gpudevice = 1;
+        smallnc = 0;
+        zsoffset = 1.500000;
+        zsinit = -2.500000;
+        frictionmodel = 1;
+        cfmap = {terrain_name}?zo;
+        {rainfall_command}
+        outfile = output.nc;
+        outvars = hmax;
+        top = top_bnd.txt,2;
+        bottom = bottom_bnd.txt,2;
+        right = right_bnd.txt,2;
+        left = left_bnd.txt,2;
+        """)
+
+        # Set up output path
+        output_path = self.flood_model_path / self.output_folder / "BG_param.txt"
+
+        with open(output_path, "w", encoding="utf-8") as f:
+            f.write(param_text)
+            for line in self.flow_text_data_generator():
+                f.write(line + "\n")
+
+        return output_path.parent
+
+    def parameter_files_generator(self) -> Path:
+        """
+        Generate parameter files to run BG-Flood
+
+        Returns
+        -------
+        Path
+            The directory the parameter file was created in.
+        """
+        # Generate flow files
+        self.write_injection_point_files()
+
+        # Generate tide files
+        self.generate_tidal_point_files()
+
+        # Generate param files
+        output_dir = self.write_flood_model_parameter_file()
+
+        return output_dir

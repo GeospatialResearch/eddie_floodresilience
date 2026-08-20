@@ -49,8 +49,6 @@ services:
       - .env
       - api_keys.env
       - .env.docker-override
-    volumes:
-      - stored_data:/stored_data
     healthcheck:
       test: curl --fail -s http://localhost:5000/ || exit 1
       interval: 10s
@@ -79,6 +77,7 @@ services:
       # Bind host data directories to container, allowing different instances to share data sources.
       - stored_data:/stored_data
       - geoserver_data:/stored_data/geoserver
+      - ${HYDROMT_PATH}:/necessary_data:ro
     ports:
       - "5001:5001"
     healthcheck:
@@ -125,7 +124,7 @@ services:
   terria_map:
     # Front-end using terria.js
     build:
-      context: lib/eddie/terriajs
+      context: terriajs
     ports:
       - "${WWW_PORT}:3001"
     environment:

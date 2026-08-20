@@ -84,9 +84,9 @@ class RiverNetwork(Base):
     geometry = Column(Geometry("POLYGON", srid=2193))
 
 
-class BGFloodModelOutput(Base):
+class FloodModelOutput(Base):
     """
-    Class representing the 'bg_flood_model_output' table.
+    Class representing the 'flood_model_output' table.
 
     Attributes
     ----------
@@ -104,12 +104,37 @@ class BGFloodModelOutput(Base):
         Geometric representation of the catchment area coverage.
     """  # pylint: disable=too-few-public-methods
 
-    __tablename__ = "bg_flood_model_output"
+    __tablename__ = "flood_model_output"
     unique_id = Column(Integer, primary_key=True, autoincrement=True)
-    file_name = Column(String, comment="name of the flood model output file")
-    file_path = Column(String, comment="path to the flood model output file")
+    file_name = Column(String, comment="name of the flood model output file", nullable=True)
+    file_path = Column(String, comment="path to the flood model output file", nullable=True)
     created_at = Column(DateTime(timezone=True), default=datetime.now(timezone.utc), comment="output created datetime")
     geometry = Column(Geometry("POLYGON", srid=2193))
+
+
+class FloodModelOutputDifference(Base):
+    """
+    Class representing the 'flood_model_output_difference' table.
+
+    Attributes
+    ----------
+    __tablename__ : str
+        Name of the database table.
+    baseline_id : int
+        Foreign key for the matching baseline flood_model_output (primary key).
+    scenario_id : int
+        Foreign key for the matching scenario flood_model_output (primary key).
+    file_name : str
+        Name of the flood model output file.
+    file_path : str
+        Path to the flood model output file.
+    """  # pylint: disable=too-few-public-methods
+
+    __tablename__ = "flood_model_output_difference"
+    baseline_id = Column(Integer, primary_key=True)
+    scenario_id = Column(Integer, primary_key=True)
+    file_name = Column(String, comment="name of the flood model output file", nullable=True)
+    file_path = Column(String, comment="path to the flood model output file", nullable=True)
 
 
 class BuildingFloodStatus(Base):
@@ -128,7 +153,7 @@ class BuildingFloodStatus(Base):
     is_flooded : bool
         If the building is flooded or not
     flood_model_id: int.
-        Foreign key mathing the unique_id from bg_flood_model_output table
+        Foreign key mathing the unique_id from flood_model_output table
     """  # pylint: disable=too-few-public-methods
 
     __tablename__ = "building_flood_status"
@@ -136,3 +161,27 @@ class BuildingFloodStatus(Base):
     building_outline_id = Column(Integer, comment="The building outline id matching from nz_building_outlines table")
     is_flooded = Column(Boolean, comment="If the building is flooded or not")
     flood_model_id = Column(Integer)
+
+
+class PipelineOutput(Base):
+    """
+    Class for writing details with ID for each pipeline run
+
+    Attributes
+    ----------
+    __tablename__ : str
+        Name of the database table.
+    unique_id : int
+        Unique identifier for each entry (primary key).
+    folder_name : str
+        Name of folder
+    created_at: str
+        Time the pipeline is run
+    geometry: str
+    """  # pylint: disable=too-few-public-methods
+
+    __tablename__ = "pipeline_output"
+    unique_id = Column(Integer, primary_key=True, autoincrement=True)
+    folder_name = Column(String, comment="name of the pipeline output folder", nullable=True)
+    created_at = Column(DateTime(timezone=True), default=datetime.now(timezone.utc), comment="output created datetime")
+    geometry = Column(Geometry(srid=2193))
