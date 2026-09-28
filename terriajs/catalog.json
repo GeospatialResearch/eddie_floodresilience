@@ -8,30 +8,106 @@
   "catalog": [
     {
       "type": "group",
-      "name": "Model land cover change flood scenarios",
+      "name": "Jacobs River Estuary Tide and Sea Level Rise Demonstrations",
+      "description": "A collection of model outputs showing the how tide and sea level rise affect the Jacobs River Estuary",
       "isOpen": true,
       "members": [
         {
-          "type": "wps",
-          "name": "Whirinaki 1999 Baseline",
-          "description": "Model a land cover change scenario that will impact the flood scenario",
-          "url": "$BACKEND_URL/wps",
-          "identifier": "whirinaki1999baseline"
+          "name": "Past Event (2 Year Return Period)",
+          "layers": "scenario1_past_event_noSLR_2_year_max",
+          "styles": "plasma_0_3m",
+          "type": "wms",
+          "url": "$GEOSERVER_URL/geoserver/static_files/wms",
+          "opacity": 1
         },
         {
-          "type": "wps",
-          "name": "Whirinaki 1999 Land Cover Change",
-          "description": "Model a land cover change scenario that will impact the flood scenario",
-          "url": "$BACKEND_URL/wps",
-          "identifier": "whirinaki1999"
+          "name": "40 Year Return Period Rain at Low Tide",
+          "layers": "scenario3_40yr_lowtide_max",
+          "styles": "plasma_0_3m",
+          "type": "wms",
+          "url": "$GEOSERVER_URL/geoserver/static_files/wms",
+          "opacity": 1
         },
         {
-          "type": "wps",
-          "name": "Whirinaki 1999 Land Cover Change - Existing Layer",
-          "description": "Model a land cover change scenario that will impact the flood scenario",
-          "url": "$BACKEND_URL/wps",
-          "identifier": "whirinaki1999ExistingLayer"
+          "name": "40 Year Return Period Rain at High Tide",
+          "layers": "scenario2_40yr_hightide_max",
+          "styles": "plasma_0_3m",
+          "type": "wms",
+          "url": "$GEOSERVER_URL/geoserver/static_files/wms",
+          "opacity": 1
         },
+        {
+          "name": "40 Year Return Period Rain at Low Tide + Sea Level Rise",
+          "layers": "scenario5_40yr_lowtide_slr2150_max",
+          "styles": "plasma_0_3m",
+          "type": "wms",
+          "url": "$GEOSERVER_URL/geoserver/static_files/wms",
+          "opacity": 1
+        },
+        {
+          "name": "40 Year Return Period Rain at High Tide + Sea Level Rise",
+          "layers": "scenario4_40yr_hightide_slr2150_max",
+          "styles": "plasma_0_3m",
+          "type": "wms",
+          "url": "$GEOSERVER_URL/geoserver/static_files/wms",
+          "opacity": 1
+        }
+      ]
+    },
+    {
+      "type": "group",
+      "name": "Wetland Layers",
+      "isOpen": true,
+      "members": [
+        {
+          "name": "Pre-Human Wetlands (Derived from Eco-Index)",
+          "type": "wfs",
+          "maxFeatures": 60000,
+          "url": "$GEOSERVER_URL/geoserver/static_files/ows",
+          "typeNames": "static_files:pre-human_wetlands",
+          "description": "Polygons of projected pre-human extents of any wetland land class.",
+          "attribution": "Derived from \"Eco-index Ecosystem Projector for NZ\" by Eco-Index, used under Creative Commons Attribution 4.0 International. Available at https://eco-index.koordinates.com/layer/120435-eco-index-ecosystem-projector-for-nz",
+          "show": true,
+          "splitDirection": 0,
+          "styles": [
+            {
+              "id": "Wetlands",
+              "color": {
+                "nullColor": "rgba(223,137,13,1)"
+              },
+              "hidden": false
+            }
+          ],
+          "activeStyle": "Wetlands"
+        },
+        {
+          "name": "Current Wetlands (Derived from Eco-Index)",
+          "type": "wfs",
+          "maxFeatures": 60000,
+          "url": "$GEOSERVER_URL/geoserver/static_files/ows",
+          "typeNames": "static_files:current_wetlands",
+          "description": "Polygons of projected pre-human extents of any wetland land class.",
+          "attribution": "Derived from \"Ecosystem Services Valuer - Existing Areas\" by Eco-Index, used under Creative Commons Attribution 4.0 International. Available at https://eco-index.koordinates.com/layer/124005-ecosystem-services-valuer-existing-areas/",
+          "show": true,
+          "splitDirection": 2,
+          "styles": [
+            {
+              "id": "Wetlands",
+              "color": {
+                "nullColor": "rgba(223,137,13,1)"
+              },
+              "hidden": false
+            }
+          ],
+          "activeStyle": "Wetlands"
+        }
+      ]
+    },
+    {
+      "type": "group",
+      "name": "Model land cover change flood scenarios",
+      "isOpen": true,
+      "members": [
         {
           "type": "wps",
           "name": "Mataura 2020 Baseline",
