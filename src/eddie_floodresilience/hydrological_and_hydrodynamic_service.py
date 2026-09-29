@@ -210,7 +210,7 @@ def handler_for_task(task: Task, color_mapping: LandCoverColorMapping, input_typ
             tasks.cache_results.delay(scenario_id, cache_dict)
 
         is_baseline = input_type == InputType.BASELINE
-        scenario_name = "Baseline" if is_baseline else str(scenario_id)
+        scenario_name = "Baseline" if is_baseline else f"Scenario {scenario_id}"
 
         # Add Geoserver JSON Catalog entries to WPS response for use by Terria
         response.outputs['landcover'].data = json.dumps(
