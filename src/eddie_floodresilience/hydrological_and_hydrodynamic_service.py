@@ -618,6 +618,11 @@ def landcover_catalog(scenario_id: int, scenario_name: str, color_mapping: LandC
                         ]
                     }
                 },
+                "outline": {
+                    "null": {
+                        "width": 0
+                    }
+                },
                 "hidden": False
             },
             {
@@ -625,12 +630,22 @@ def landcover_catalog(scenario_id: int, scenario_name: str, color_mapping: LandC
                 "color": {
                     "enumColors": landcover_color_styles,
                 },
+                "outline": {
+                    "null": {
+                        "width": 0
+                    }
+                },
                 "hidden": False
             },
             {
                 "id": "Atua Domain",
                 "color": {
                     "colorPalette": "Dark2"
+                },
+                "outline": {
+                    "null": {
+                        "width": 0
+                    }
                 },
                 "hidden": False
             },

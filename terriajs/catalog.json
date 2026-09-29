@@ -65,7 +65,7 @@
           "maxFeatures": 60000,
           "url": "$GEOSERVER_URL/geoserver/static_files/ows",
           "typeNames": "static_files:pre-human_wetlands",
-          "description": "Polygons of projected pre-human extents of any wetland land class.",
+          "description": "Polygons of projected pre-human extents of any wetland land class. \nDerived from \"Eco-index Ecosystem Projector for NZ\" by Eco-Index, used under Creative Commons Attribution 4.0 International. Available at https://eco-index.koordinates.com/layer/120435-eco-index-ecosystem-projector-for-nz",
           "attribution": "Derived from \"Eco-index Ecosystem Projector for NZ\" by Eco-Index, used under Creative Commons Attribution 4.0 International. Available at https://eco-index.koordinates.com/layer/120435-eco-index-ecosystem-projector-for-nz",
           "show": true,
           "splitDirection": 0,
@@ -74,6 +74,11 @@
               "id": "Wetlands",
               "color": {
                 "nullColor": "rgba(223,137,13,1)"
+              },
+              "outline": {
+                "null": {
+                  "width": 0
+                }
               },
               "hidden": false
             }
@@ -86,7 +91,7 @@
           "maxFeatures": 60000,
           "url": "$GEOSERVER_URL/geoserver/static_files/ows",
           "typeNames": "static_files:current_wetlands",
-          "description": "Polygons of projected pre-human extents of any wetland land class.",
+          "description": "Polygons of estimated current extents of any wetland land class.\nDerived from \"Ecosystem Services Valuer - Existing Areas\" by Eco-Index, used under Creative Commons Attribution 4.0 International. Available at https://eco-index.koordinates.com/layer/124005-ecosystem-services-valuer-existing-areas/",
           "attribution": "Derived from \"Ecosystem Services Valuer - Existing Areas\" by Eco-Index, used under Creative Commons Attribution 4.0 International. Available at https://eco-index.koordinates.com/layer/124005-ecosystem-services-valuer-existing-areas/",
           "show": true,
           "splitDirection": 2,
@@ -95,6 +100,11 @@
               "id": "Wetlands",
               "color": {
                 "nullColor": "rgba(223,137,13,1)"
+              },
+              "outline": {
+                "null": {
+                  "width": 0
+                }
               },
               "hidden": false
             }
